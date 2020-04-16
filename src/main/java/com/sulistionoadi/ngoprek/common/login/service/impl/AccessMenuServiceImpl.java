@@ -46,12 +46,10 @@ public class AccessMenuServiceImpl extends DaoUtils implements AccessMenuService
 	@Override
 	public void save(AccessMenuDTO dto) throws Exception {
 		String sql = "INSERT INTO cm_sec_menu ("
-				   + "    id, created_by, created_date, updated_by, updated_date,"
-				   + "    is_deleted, is_active, appname, "
+				   + "    id, created_by, created_date, updated_by, updated_date, is_active, appname, "
 				   + "    menucode, menuname, priority, parentid"
 				   + ") VALUES ("
-				   + "    :id, :createdBy, :createdDate, :updatedBy, :updatedDate, "
-				   + "    :isDeleted, :isActive, :appname, "
+				   + "    :id, :createdBy, :createdDate, :updatedBy, :updatedDate, :isActive, :appname, "
 				   + "    :menuCode, :menuName, :priority, :parentid"
 				   + ")";
 
@@ -74,9 +72,9 @@ public class AccessMenuServiceImpl extends DaoUtils implements AccessMenuService
 			throw new Exception("AccessMenu with id:" + dto.getId() + " not found");
 		}
 		
+		validateRecordBeforeUpdate(op.get());
 		String sql = "UPDATE cm_sec_menu SET "
-				   + "    updated_by=:updatedBy, updated_date=:updatedDate, "
-				   + "    is_deleted=:isDeleted, is_active=:isActive, "
+				   + "    updated_by=:updatedBy, updated_date=:updatedDate, is_active=:isActive, "
 				   + "    menucode=:menuCode, menuname=:menuName, "
 				   + "    priority=:priority, parentid=:parentid "
 				   + "WHERE id=:id "
@@ -96,7 +94,7 @@ public class AccessMenuServiceImpl extends DaoUtils implements AccessMenuService
 
 	@Override
 	public Optional<AccessMenuDTO> findOne(Long id) throws Exception {
-		String sql = "SELECT m.* FROM cm_sec_menu m WHERE m.id=? AND m.appname=?";
+		String sql = "SELECT m.* FROM cm_sec_menu m WHERE m.id=? AND m.appname=? AND m.is_deleted=0";
 		try {
 			log.debug("Get AccessMenu with id:{}", id);
 			AccessMenuDTO dto = getJdbcTemplate(datasource).queryForObject(sql, 
@@ -114,11 +112,14 @@ public class AccessMenuServiceImpl extends DaoUtils implements AccessMenuService
 
 	@Override
 	public Long count(PssFilter filter) throws Exception {
-		String sql = "SELECT COUNT(*) FROM cm_sec_menu m WHERE m.appname=:appname ";
+		String sql = "SELECT COUNT(c.id) FROM cm_sec_menu c "
+				   + "INNER JOIN cm_sec_menu p ON p.id = c.parentid " 
+				   + "WHERE c.appname = :appname and c.is_deleted=0 "
+				   + "  AND p.appname = :appname and p.is_deleted=0";
 		if (StringUtils.hasText(filter.getSearch().get(PSS_SEARCH_VAL))) {
 			sql += "    AND ( ";
-			sql += "            lower(m.MENUCODE) LIKE :filter ";
-			sql += "        OR  lower(m.MENUNAME) LIKE :filter ";
+			sql += "            lower(c.MENUCODE) LIKE :filter ";
+			sql += "        OR  lower(c.MENUNAME) LIKE :filter ";
 			sql += "    ) ";
 		}
 
@@ -144,11 +145,12 @@ public class AccessMenuServiceImpl extends DaoUtils implements AccessMenuService
 				   + "    FROM ( "
 				   + "        SELECT c.*, p.priority p_priority FROM cm_sec_menu c "
 				   + "        INNER JOIN cm_sec_menu p ON p.id = c.parentid " 
-				   + "        WHERE appname = :appname ";
+				   + "        WHERE c.appname = :appname and c.is_deleted=0 "
+				   + "          AND p.appname = :appname and p.is_deleted=0 ";
 		if (StringUtils.hasText(filter.getSearch().get(PSS_SEARCH_VAL))) {
 			  sql += "          AND ( ";
-			  sql += "                 lower(m.MENUCODE) LIKE :filter ";
-			  sql += "             OR  lower(m.MENUNAME) LIKE :filter ";
+			  sql += "                 lower(c.MENUCODE) LIKE :filter ";
+			  sql += "             OR  lower(c.MENUNAME) LIKE :filter ";
 			  sql += "          ) ";
 		}
 		      sql += "    ) DT ";
@@ -174,7 +176,8 @@ public class AccessMenuServiceImpl extends DaoUtils implements AccessMenuService
 		if (!op.isPresent()) {
 			throw new Exception("AccessMenu with id:" + id + " not found");
 		}
-
+		
+		validateRecordBeforeUpdate(op.get());
 		String q = "DELETE FROM cm_sec_menu WHERE id=? AND appname=?";
 		try {
 			getJdbcTemplate(datasource).update(q, id, this.appname);
@@ -203,6 +206,7 @@ public class AccessMenuServiceImpl extends DaoUtils implements AccessMenuService
 			throw new Exception("AccessMenu with id:" + id + " not found");
 		}
 		
+		validateRecordBeforeUpdate(op.get());
 		String q = "UPDATE cm_sec_menu SET is_active=? WHERE id=? AND appname=?";
 		try {
 			Integer boolVal = bool ? 1:0;
@@ -220,9 +224,10 @@ public class AccessMenuServiceImpl extends DaoUtils implements AccessMenuService
 				   + "       map.act_pdf, map.act_save, map.act_remove "
 				   + "FROM cm_sec_menu menu, cm_sec_role_menu map "
 				   + "WHERE menu.id = map.menuid AND map.roleid = ? AND menu.parentid IS NULL "
+				   + "  AND menu.is_deleted=0 AND menu.appname=?"
 				   + "ORDER BY menu.priority ASC";
 		try {
-			List<AccessMenuDTO> parents = getJdbcTemplate(datasource).query(sql, new Object[] { roleid },
+			List<AccessMenuDTO> parents = getJdbcTemplate(datasource).query(sql, new Object[] { roleid, this.appname },
 					new AccessMenuRowMapper());
 			for (AccessMenuDTO amd : parents) {
 				amd.setChilds(getPermittedChildMenu(roleid, amd.getId()));
@@ -241,9 +246,10 @@ public class AccessMenuServiceImpl extends DaoUtils implements AccessMenuService
 				   + "       map.act_pdf, map.act_save, map.act_remove "
 				   + "FROM cm_sec_menu menu, cm_sec_role_menu map "
 				   + "WHERE menu.id = map.menuid AND map.roleid = ? AND menu.parentid = ? "
+				   + "  AND menu.is_deleted=0 AND menu.appname=?"
 				   + "ORDER BY menu.priority ASC";
 		try {
-			List<AccessMenuDTO> parents = getJdbcTemplate(datasource).query(sql, new Object[] { roleid, parentid },
+			List<AccessMenuDTO> parents = getJdbcTemplate(datasource).query(sql, new Object[] { roleid, parentid, this.appname},
 					new AccessMenuRowMapper());
 			for (AccessMenuDTO amd : parents) {
 				if (amd.getParentid() != null) {

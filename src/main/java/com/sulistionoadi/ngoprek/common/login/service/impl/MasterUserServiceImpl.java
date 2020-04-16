@@ -51,12 +51,10 @@ public class MasterUserServiceImpl extends DaoUtils implements MasterUserService
 	public void save(MasterUserDTO dto) throws Exception {
 		String sql = "INSERT INTO cm_sec_user ("
 				   + "    id, created_by, created_date, updated_by, updated_date,"
-				   + "    is_deleted, is_active, appname, "
-				   + "    username, password, roleid "
+				   + "    is_active, appname, username, password, roleid "
 				   + ") VALUES ("
 				   + "    :id, :createdBy, :createdDate, :updatedBy, :updatedDate, "
-				   + "    :isDeleted, :isActive, :appname, "
-				   + "    :username, :password, :role_id "
+				   + "    :isActive, :appname, :username, :password, :role_id "
 				   + ")";
 
 		try {
@@ -78,14 +76,14 @@ public class MasterUserServiceImpl extends DaoUtils implements MasterUserService
 		if (!op.isPresent()) {
 			throw new Exception("MasterUser with id:" + dto.getId() + " not found");
 		}
+		validateRecordBeforeUpdate(op.get());
 
 		if (!StringUtils.hasText(dto.getPassword())) {
 			dto.setPassword(op.get().getPassword());
 		}
 		
 		String sql = "UPDATE cm_sec_user SET "
-				   + "    updated_by=:updatedBy, updated_date=:updatedDate, "
-				   + "    is_deleted=:isDeleted, is_active=:isActive, "
+				   + "    updated_by=:updatedBy, updated_date=:updatedDate, is_active=:isActive, "
 				   + "    username=:username, password=:password, roleid=:role_id "
 				   + "WHERE id=:id "
 				   + "  AND appname=:appname";
@@ -105,7 +103,7 @@ public class MasterUserServiceImpl extends DaoUtils implements MasterUserService
 
 	@Override
 	public Optional<MasterUserDTO> findOne(Long id) throws Exception {
-		String sql = "SELECT m.* FROM cm_sec_user m WHERE m.id=? AND m.appname=?";
+		String sql = "SELECT m.* FROM cm_sec_user m WHERE m.id=? AND m.appname=? AND m.is_deleted=0";
 		try {
 			log.debug("Get MasterUser with id:{}", id);
 			MasterUserDTO dto = getJdbcTemplate(datasource).queryForObject(sql, 
@@ -135,7 +133,7 @@ public class MasterUserServiceImpl extends DaoUtils implements MasterUserService
 	}
 	
 	public Optional<MasterUserDTO> findByUsername(String username) throws Exception {
-		String sql = "SELECT m.* FROM cm_sec_user m WHERE m.username=? AND m.appname=?";
+		String sql = "SELECT m.* FROM cm_sec_user m WHERE m.username=? AND m.appname=? AND m.is_deleted=0";
 		try {
 			log.debug("Get MasterUser with username:{}", username);
 			MasterUserDTO dto = getJdbcTemplate(datasource).queryForObject(sql, 
@@ -168,7 +166,8 @@ public class MasterUserServiceImpl extends DaoUtils implements MasterUserService
 	public Long count(PssFilter filter) throws Exception {
 		String sql = "SELECT COUNT(u.id) FROM cm_sec_user u " 
 				   + "INNER JOIN cm_sec_role r ON r.id = u.roleid "
-				   + "WHERE u.appname = :appname ";
+				   + "WHERE u.appname = :appname AND u.is_deleted=0 "
+				   + "  AND r.appname = :appname AND r.is_deleted=0 ";
 		if (StringUtils.hasText(filter.getSearch().get(PSS_SEARCH_VAL))) {
 			sql += "    AND ( ";
 			sql += "            lower(u.username) LIKE :filter ";
@@ -199,7 +198,8 @@ public class MasterUserServiceImpl extends DaoUtils implements MasterUserService
 				   + "    FROM ( "
 				   + "        SELECT u.*, r.rolename FROM cm_sec_user u "
 				   + "        INNER JOIN cm_sec_role r ON r.id = u.roleid " 
-				   + "        WHERE u.appname = :appname ";
+				   + "        WHERE u.appname = :appname AND u.is_deleted=0 "
+				   + "          AND r.appname = :appname AND r.is_deleted=0 ";
 		if (StringUtils.hasText(filter.getSearch().get(PSS_SEARCH_VAL))) {
 			sql += "          AND ( ";
 			sql += "            lower(u.username) LIKE :filter ";
@@ -240,6 +240,7 @@ public class MasterUserServiceImpl extends DaoUtils implements MasterUserService
 			throw new Exception("MasterUser with id:" + id + " not found");
 		}
 
+		validateRecordBeforeUpdate(op.get());
 		String q = "DELETE FROM cm_sec_user WHERE id=? AND appname=?";
 		try {
 			getJdbcTemplate(datasource).update(q, id, this.appname);
@@ -269,6 +270,7 @@ public class MasterUserServiceImpl extends DaoUtils implements MasterUserService
 			throw new Exception("MasterUser with id:" + id + " not found");
 		}
 		
+		validateRecordBeforeUpdate(op.get());
 		String q = "UPDATE cm_sec_user SET is_active=? WHERE id=? AND appname=?";
 		try {
 			Integer boolVal = bool ? 1:0;

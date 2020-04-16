@@ -54,10 +54,10 @@ public class MasterRoleServiceImpl extends DaoUtils implements MasterRoleService
 	public void save(MasterRoleDTO dto) throws Exception {
 		String sql = "INSERT INTO cm_sec_role ("
 				   + "    id, created_by, created_date, updated_by, updated_date,"
-				   + "    is_deleted, is_active, appname, rolename "
+				   + "    is_active, appname, rolename "
 				   + ") VALUES ("
 				   + "    :id, :createdBy, :createdDate, :updatedBy, :updatedDate, "
-				   + "    :isDeleted, :isActive, :appname, :name"
+				   + "    :isActive, :appname, :name"
 				   + ")";
 
 		try {
@@ -79,10 +79,10 @@ public class MasterRoleServiceImpl extends DaoUtils implements MasterRoleService
 			throw new Exception("MasterRole with id:" + dto.getId() + " not found");
 		}
 		
+		validateRecordBeforeUpdate(op.get());
 		String sql = "UPDATE cm_sec_role SET "
 				   + "    updated_by=:updatedBy, updated_date=:updatedDate, "
-				   + "    is_deleted=:isDeleted, is_active=:isActive, "
-				   + "    rolename=:name "
+				   + "    is_active=:isActive, rolename=:name "
 				   + "WHERE id=:id "
 				   + "  AND appname=:appname";
 
@@ -100,7 +100,7 @@ public class MasterRoleServiceImpl extends DaoUtils implements MasterRoleService
 
 	@Override
 	public Optional<MasterRoleDTO> findOne(Long id) throws Exception {
-		String sql = "SELECT m.* FROM cm_sec_role m WHERE m.id=? AND m.appname=?";
+		String sql = "SELECT m.* FROM cm_sec_role m WHERE m.id=? AND m.appname=? AND m.is_deleted=0";
 		try {
 			log.debug("Get MasterRole with id:{}", id);
 			MasterRoleDTO dto = getJdbcTemplate(datasource).queryForObject(sql, 
@@ -129,7 +129,7 @@ public class MasterRoleServiceImpl extends DaoUtils implements MasterRoleService
 
 	@Override
 	public Long count(PssFilter filter) throws Exception {
-		String sql = "SELECT COUNT(*) FROM cm_sec_role m WHERE m.appname=:appname ";
+		String sql = "SELECT COUNT(*) FROM cm_sec_role m WHERE m.appname=:appname AND m.is_deleted=0 ";
 		if (StringUtils.hasText(filter.getSearch().get(PSS_SEARCH_VAL))) {
 			sql += "    AND ( ";
 			sql += "            lower(m.ROLENAME) LIKE :filter ";
@@ -158,7 +158,7 @@ public class MasterRoleServiceImpl extends DaoUtils implements MasterRoleService
 				   + "           ) line_number " 
 				   + "    FROM ( "
 				   + "        SELECT m.* FROM cm_sec_role m "
-				   + "        WHERE appname = :appname ";
+				   + "        WHERE m.appname = :appname AND m.is_deleted=0 ";
 		if (StringUtils.hasText(filter.getSearch().get(PSS_SEARCH_VAL))) {
 			  sql += "          AND ( ";
 			  sql += "                 lower(m.ROLENAME) LIKE :filter ";
@@ -214,6 +214,7 @@ public class MasterRoleServiceImpl extends DaoUtils implements MasterRoleService
 			throw new Exception("MasterRole with id:" + id + " not found");
 		}
 
+		validateRecordBeforeUpdate(op.get());
 		String q = "DELETE FROM cm_sec_role WHERE id=? AND appname=?";
 		try {
 			getJdbcTemplate(datasource).update(q, id, this.appname);
@@ -243,6 +244,7 @@ public class MasterRoleServiceImpl extends DaoUtils implements MasterRoleService
 			throw new Exception("MasterRole with id:" + id + " not found");
 		}
 		
+		validateRecordBeforeUpdate(op.get());
 		String q = "UPDATE cm_sec_role SET is_active=? WHERE id=? AND appname=?";
 		try {
 			Integer boolVal = bool ? 1:0;
