@@ -1,5 +1,7 @@
 package com.sulistionoadi.ngoprek.common.login.service.impl;
 
+import static com.sulistionoadi.ngoprek.common.pss.constant.PssConstant.PSS_ORDER_COLUMN;
+import static com.sulistionoadi.ngoprek.common.pss.constant.PssConstant.PSS_ORDER_DIRECTION;
 import static com.sulistionoadi.ngoprek.common.pss.constant.PssConstant.PSS_SEARCH_VAL;
 import static com.sulistionoadi.ngoprek.common.pss.utils.PssUtils.generateCountPssParameter;
 import static com.sulistionoadi.ngoprek.common.pss.utils.PssUtils.generatePssParameter;
@@ -7,6 +9,7 @@ import static com.sulistionoadi.ngoprek.common.pss.utils.PssUtils.getOrderBy;
 
 import java.io.Serializable;
 import java.text.MessageFormat;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,7 +20,6 @@ import javax.sql.DataSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.EmptyResultDataAccessException;
-import org.springframework.jdbc.core.namedparam.BeanPropertySqlParameterSource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -27,6 +29,7 @@ import com.sulistionoadi.ngoprek.common.login.rowmapper.MasterRoleRowMapper;
 import com.sulistionoadi.ngoprek.common.login.service.AccessMenuService;
 import com.sulistionoadi.ngoprek.common.login.service.MasterRoleService;
 import com.sulistionoadi.ngoprek.common.pss.dto.PssFilter;
+import com.sulistionoadi.ngoprek.common.utils.CombinedSqlParameterSource;
 import com.sulistionoadi.ngoprek.common.utils.DaoUtils;
 
 import lombok.extern.slf4j.Slf4j;
@@ -54,12 +57,14 @@ public class MasterRoleServiceImpl extends DaoUtils implements MasterRoleService
 				   + "    is_deleted, is_active, appname, rolename "
 				   + ") VALUES ("
 				   + "    :id, :createdBy, :createdDate, :updatedBy, :updatedDate, "
-				   + "    :isDeleted, :isActive, '" + this.appname + "', :name"
+				   + "    :isDeleted, :isActive, :appname, :name"
 				   + ")";
 
 		try {
-			getNamedParameterJdbcTemplate(this.datasource)
-				.update(sql, new BeanPropertySqlParameterSource(dto));
+			CombinedSqlParameterSource params = new CombinedSqlParameterSource(dto);
+			params.addValue("appname", this.appname);
+			
+			getNamedParameterJdbcTemplate(this.datasource).update(sql, params);
 			log.info("Save MasterRole successfully");
 		} catch (Exception ex) {
 			log.error("Cannot save MasterRole, cause:{}", ex.getMessage(), ex);
@@ -79,11 +84,13 @@ public class MasterRoleServiceImpl extends DaoUtils implements MasterRoleService
 				   + "    is_deleted=:isDeleted, is_active=:isActive, "
 				   + "    rolename=:name "
 				   + "WHERE id=:id "
-				   + "  AND appname=" + this.appname;
+				   + "  AND appname=:appname";
 
 		try {
-			getNamedParameterJdbcTemplate(this.datasource)
-				.update(sql, new BeanPropertySqlParameterSource(dto));
+			CombinedSqlParameterSource params = new CombinedSqlParameterSource(dto);
+			params.addValue("appname", this.appname);
+			
+			getNamedParameterJdbcTemplate(this.datasource).update(sql, params);
 			log.info("Update MasterRole with id:{} successfully", dto.getId());
 		} catch (Exception ex) {
 			log.error("Cannot update MasterRole, cause:{}", ex.getMessage(), ex);
@@ -185,11 +192,17 @@ public class MasterRoleServiceImpl extends DaoUtils implements MasterRoleService
 	public List<MasterRoleDTO> getAllRole() throws Exception {
 		PssFilter pss = new PssFilter();
 		pss.setSearch(new HashMap<>());
+		pss.setOrder(new ArrayList<>());
 		
 		Long countAll = count(pss);
 		
 		pss.setStart(0);
 		pss.setLength(countAll.intValue());
+		
+		HashMap<String, String> orderBy = new HashMap<>();
+		orderBy.put(PSS_ORDER_COLUMN, "1");
+		orderBy.put(PSS_ORDER_DIRECTION, "asc");
+		pss.getOrder().add(orderBy);
 		
 		return filter(pss);
 	}

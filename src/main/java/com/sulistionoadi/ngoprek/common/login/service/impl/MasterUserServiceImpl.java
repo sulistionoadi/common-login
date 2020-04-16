@@ -55,13 +55,14 @@ public class MasterUserServiceImpl extends DaoUtils implements MasterUserService
 				   + "    username, password, roleid "
 				   + ") VALUES ("
 				   + "    :id, :createdBy, :createdDate, :updatedBy, :updatedDate, "
-				   + "    :isDeleted, :isActive, '" + this.appname + "', "
+				   + "    :isDeleted, :isActive, :appname, "
 				   + "    :username, :password, :role_id "
 				   + ")";
 
 		try {
 			CombinedSqlParameterSource params = new CombinedSqlParameterSource(dto);
 			params.addValue("role_id", dto.getRole().getId());
+			params.addValue("appname", this.appname);
 			
 			getNamedParameterJdbcTemplate(this.datasource).update(sql, params);
 			log.info("Save MasterUser successfully");
@@ -87,11 +88,12 @@ public class MasterUserServiceImpl extends DaoUtils implements MasterUserService
 				   + "    is_deleted=:isDeleted, is_active=:isActive, "
 				   + "    username=:username, password=:password, roleid=:role_id "
 				   + "WHERE id=:id "
-				   + "  AND appname=" + this.appname;
+				   + "  AND appname=:appname";
 
 		try {
 			CombinedSqlParameterSource params = new CombinedSqlParameterSource(dto);
 			params.addValue("role_id", dto.getRole().getId());
+			params.addValue("appname", this.appname);
 			
 			getNamedParameterJdbcTemplate(this.datasource).update(sql, params);
 			log.info("Update MasterUser with id:{} successfully", dto.getId());

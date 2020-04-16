@@ -17,7 +17,6 @@ import javax.sql.DataSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.EmptyResultDataAccessException;
-import org.springframework.jdbc.core.namedparam.BeanPropertySqlParameterSource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -26,6 +25,7 @@ import com.sulistionoadi.ngoprek.common.dto.security.AccessMenuDTO;
 import com.sulistionoadi.ngoprek.common.login.rowmapper.AccessMenuRowMapper;
 import com.sulistionoadi.ngoprek.common.login.service.AccessMenuService;
 import com.sulistionoadi.ngoprek.common.pss.dto.PssFilter;
+import com.sulistionoadi.ngoprek.common.utils.CombinedSqlParameterSource;
 import com.sulistionoadi.ngoprek.common.utils.DaoUtils;
 
 import lombok.extern.slf4j.Slf4j;
@@ -51,13 +51,15 @@ public class AccessMenuServiceImpl extends DaoUtils implements AccessMenuService
 				   + "    menucode, menuname, priority, parentid"
 				   + ") VALUES ("
 				   + "    :id, :createdBy, :createdDate, :updatedBy, :updatedDate, "
-				   + "    :isDeleted, :isActive, '" + this.appname + "', "
+				   + "    :isDeleted, :isActive, :appname, "
 				   + "    :menuCode, :menuName, :priority, :parentid"
 				   + ")";
 
 		try {
-			getNamedParameterJdbcTemplate(this.datasource)
-				.update(sql, new BeanPropertySqlParameterSource(dto));
+			CombinedSqlParameterSource params = new CombinedSqlParameterSource(dto);
+			params.addValue("appname", this.appname);
+			
+			getNamedParameterJdbcTemplate(this.datasource).update(sql, params);
 			log.info("Save AccessMenu successfully");
 		} catch (Exception ex) {
 			log.error("Cannot save AccessMenu, cause:{}", ex.getMessage(), ex);
@@ -78,11 +80,13 @@ public class AccessMenuServiceImpl extends DaoUtils implements AccessMenuService
 				   + "    menucode=:menuCode, menuname=:menuName, "
 				   + "    priority=:priority, parentid=:parentid "
 				   + "WHERE id=:id "
-				   + "  AND appname=" + this.appname;
+				   + "  AND appname=:appname";
 
 		try {
-			getNamedParameterJdbcTemplate(this.datasource)
-				.update(sql, new BeanPropertySqlParameterSource(dto));
+			CombinedSqlParameterSource params = new CombinedSqlParameterSource(dto);
+			params.addValue("appname", this.appname);
+			
+			getNamedParameterJdbcTemplate(this.datasource).update(sql, params);
 			log.info("Update AccessMenu with id:{} successfully", dto.getId());
 		} catch (Exception ex) {
 			log.error("Cannot update AccessMenu, cause:{}", ex.getMessage(), ex);
