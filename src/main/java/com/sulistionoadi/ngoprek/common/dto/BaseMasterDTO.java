@@ -18,11 +18,11 @@ public class BaseMasterDTO implements Serializable {
 	private static final long serialVersionUID = 8458557714361897319L;
 
 	private Long id;
-	private String createdBy = "SYSTEM";
-	private Date createdDate = new Date();
+	private String createdBy;
+	private Date createdDate;
 	private String updatedBy;
 	private Date updatedDate;
-	private Boolean isDeleted = Boolean.FALSE;
-	private Boolean isActive = Boolean.TRUE;
+	private Boolean isDeleted;
+	private Boolean isActive;
 	
 }

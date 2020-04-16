@@ -17,6 +17,8 @@
 		<java.version>1.8</java.version>
 		<maven.compiler.target>1.8</maven.compiler.target>
         <maven.compiler.source>1.8</maven.compiler.source>
+		
+		<aspectj.version>1.9.5</aspectj.version>
 		<common-pss.version>1.0.0</common-pss.version>
 		<lombok.version>1.18.12</lombok.version>
 		<slf4j.version>1.7.30</slf4j.version>
@@ -54,6 +56,16 @@
 			<artifactId>spring-security-config</artifactId>
 			<version>${spring-security.version}</version>
 			<scope>provided</scope>
+		</dependency>
+		<dependency>
+		    <groupId>org.aspectj</groupId>
+		    <artifactId>aspectjrt</artifactId>
+		    <version>${aspectj.version}</version>
+		</dependency>
+		<dependency>
+		    <groupId>org.aspectj</groupId>
+		    <artifactId>aspectjweaver</artifactId>
+		    <version>${aspectj.version}</version>
 		</dependency>
 
 	</dependencies>
