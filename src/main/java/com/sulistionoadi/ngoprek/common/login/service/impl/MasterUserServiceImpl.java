@@ -166,7 +166,7 @@ public class MasterUserServiceImpl extends DaoUtils implements MasterUserService
 	public Long count(PssFilter filter) throws Exception {
 		String sql = "SELECT COUNT(u.id) FROM cm_sec_user u " 
 				   + "INNER JOIN cm_sec_role r ON r.id = u.roleid "
-				   + "WHERE appname = :appname ";
+				   + "WHERE u.appname = :appname ";
 		if (StringUtils.hasText(filter.getSearch().get(PSS_SEARCH_VAL))) {
 			sql += "    AND ( ";
 			sql += "            lower(u.username) LIKE :filter ";
@@ -197,7 +197,7 @@ public class MasterUserServiceImpl extends DaoUtils implements MasterUserService
 				   + "    FROM ( "
 				   + "        SELECT u.*, r.rolename FROM cm_sec_user u "
 				   + "        INNER JOIN cm_sec_role r ON r.id = u.roleid " 
-				   + "        WHERE appname = :appname ";
+				   + "        WHERE u.appname = :appname ";
 		if (StringUtils.hasText(filter.getSearch().get(PSS_SEARCH_VAL))) {
 			sql += "          AND ( ";
 			sql += "            lower(u.username) LIKE :filter ";
