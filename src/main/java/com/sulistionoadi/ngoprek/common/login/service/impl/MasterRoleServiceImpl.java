@@ -24,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import com.sulistionoadi.ngoprek.common.dto.StatusActive;
 import com.sulistionoadi.ngoprek.common.dto.security.MasterRoleDTO;
 import com.sulistionoadi.ngoprek.common.login.rowmapper.MasterRoleRowMapper;
 import com.sulistionoadi.ngoprek.common.login.service.AccessMenuService;
@@ -68,7 +69,10 @@ public class MasterRoleServiceImpl extends DaoUtils implements MasterRoleService
 			log.info("Save MasterRole successfully");
 		} catch (Exception ex) {
 			log.error("Cannot save MasterRole, cause:{}", ex.getMessage(), ex);
-			throw new Exception("Cannot save MasterRole, cause:" + ex.getMessage());
+			if(ex.getMessage().toLowerCase().indexOf("unique constraint")>-1)
+				throw new Exception("Data already exists");
+			else
+				throw new Exception("Cannot save MasterRole, cause:" + ex.getMessage());
 		}
 	}
 
@@ -94,7 +98,10 @@ public class MasterRoleServiceImpl extends DaoUtils implements MasterRoleService
 			log.info("Update MasterRole with id:{} successfully", dto.getId());
 		} catch (Exception ex) {
 			log.error("Cannot update MasterRole, cause:{}", ex.getMessage(), ex);
-			throw new Exception("Cannot update MasterRole, cause:" + ex.getMessage());
+			if(ex.getMessage().toLowerCase().indexOf("unique constraint")>-1)
+				throw new Exception("Data already exists");
+			else
+				throw new Exception("Cannot update MasterRole, cause:" + ex.getMessage());
 		}
 	}
 
@@ -128,16 +135,21 @@ public class MasterRoleServiceImpl extends DaoUtils implements MasterRoleService
 	}
 
 	@Override
-	public Long count(PssFilter filter) throws Exception {
+	public Long count(PssFilter filter, StatusActive statusActive) throws Exception {
+		Map<String, Object> param = generateCountPssParameter(filter);
+		param.put("appname", this.appname);
+
 		String sql = "SELECT COUNT(*) FROM cm_sec_role m WHERE m.appname=:appname AND m.is_deleted=0 ";
+		if(statusActive!=null) {
+			sql += "    AND m.is_active=:isActive ";
+			param.put("isActive", statusActive.equals(StatusActive.YES) ? 1 : 0);
+		}
 		if (StringUtils.hasText(filter.getSearch().get(PSS_SEARCH_VAL))) {
 			sql += "    AND ( ";
-			sql += "            lower(m.ROLENAME) LIKE :filter ";
+			sql += "            lower(m.rolename) LIKE :filter ";
 			sql += "    ) ";
 		}
 
-		Map<String, Object> param = generateCountPssParameter(filter);
-		param.put("appname", this.appname);
 		log.info("Count list data MasterRole filter by {}", param);
 
 		try {
@@ -149,8 +161,11 @@ public class MasterRoleServiceImpl extends DaoUtils implements MasterRoleService
 	}
 
 	@Override
-	public List<MasterRoleDTO> filter(PssFilter filter) throws Exception {
-		String[] orderableColums = new String[]{"ID", "ROLENAME"};
+	public List<MasterRoleDTO> filter(PssFilter filter, StatusActive statusActive) throws Exception {
+		Map<String, Object> param = generatePssParameter(filter);
+		param.put("appname", this.appname);
+
+		String[] orderableColums = new String[]{"id", "rolename"};
 		String sql = "SELECT * FROM ( " 
 				   + "    SELECT DT.*, " 
 				   + "           row_number() over ( "
@@ -159,16 +174,18 @@ public class MasterRoleServiceImpl extends DaoUtils implements MasterRoleService
 				   + "    FROM ( "
 				   + "        SELECT m.* FROM cm_sec_role m "
 				   + "        WHERE m.appname = :appname AND m.is_deleted=0 ";
+		if(statusActive!=null) {
+			sql += "            AND m.is_active=:isActive ";
+			param.put("isActive", statusActive.equals(StatusActive.YES) ? 1 : 0);
+		}
 		if (StringUtils.hasText(filter.getSearch().get(PSS_SEARCH_VAL))) {
 			  sql += "          AND ( ";
-			  sql += "                 lower(m.ROLENAME) LIKE :filter ";
+			  sql += "                 lower(m.rolename) LIKE :filter ";
 			  sql += "          ) ";
 		}
 		      sql += "    ) DT ";
 		      sql += ") WHERE line_number BETWEEN :start_row AND :end_row ORDER BY line_number";
 
-		Map<String, Object> param = generatePssParameter(filter);
-		param.put("appname", this.appname);
 		log.info("Get list data MasterRole filter by {}", param);
 
 		try {
@@ -181,20 +198,20 @@ public class MasterRoleServiceImpl extends DaoUtils implements MasterRoleService
 		}
 	}
 	
-	public List<MasterRoleDTO> filterFetchEager(PssFilter filter) throws Exception {
-		List<MasterRoleDTO> list = filter(filter);
+	public List<MasterRoleDTO> filterFetchEager(PssFilter filter, StatusActive statusActive) throws Exception {
+		List<MasterRoleDTO> list = filter(filter, statusActive);
 		for (MasterRoleDTO dto : list) {
 			dto.setPermittedMenu(accessMenuService.getPermittedAccess(dto.getId()));
 		}
 		return list;
 	}
 	
-	public List<MasterRoleDTO> getAllRole() throws Exception {
+	public List<MasterRoleDTO> getForSelection() throws Exception {
 		PssFilter pss = new PssFilter();
 		pss.setSearch(new HashMap<>());
 		pss.setOrder(new ArrayList<>());
 		
-		Long countAll = count(pss);
+		Long countAll = count(pss, StatusActive.YES);
 		
 		pss.setStart(0);
 		pss.setLength(countAll.intValue());
@@ -204,7 +221,7 @@ public class MasterRoleServiceImpl extends DaoUtils implements MasterRoleService
 		orderBy.put(PSS_ORDER_DIRECTION, "asc");
 		pss.getOrder().add(orderBy);
 		
-		return filter(pss);
+		return filter(pss, StatusActive.YES);
 	}
 	
 	@Override
@@ -221,7 +238,10 @@ public class MasterRoleServiceImpl extends DaoUtils implements MasterRoleService
 			log.info("Delete MasterRole with id:{} successfully", id);
 		} catch (Exception ex) {
 			if (ex.getMessage().toLowerCase().contentEquals("constraint")) {
-				q = "UPDATE cm_sec_role SET is_deleted=1 WHERE id=? AND appname=?";
+				q = "UPDATE cm_sec_role SET "
+				  + "       is_deleted=1, "
+				  + "       rolename=CONCAT(rolename, CONCAT('-', id)) "
+			      + "WHERE id=? AND appname=?";
 				try {
 					log.warn("MasterRole with id:{} will be flag as isDeleted", id);
 					getJdbcTemplate(datasource).update(q, id, this.appname);

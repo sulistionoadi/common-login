@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import com.sulistionoadi.ngoprek.common.dto.StatusActive;
 import com.sulistionoadi.ngoprek.common.dto.security.MasterRoleDTO;
 import com.sulistionoadi.ngoprek.common.dto.security.MasterUserDTO;
 import com.sulistionoadi.ngoprek.common.login.rowmapper.MasterUserRowMapper;
@@ -66,7 +67,10 @@ public class MasterUserServiceImpl extends DaoUtils implements MasterUserService
 			log.info("Save MasterUser successfully");
 		} catch (Exception ex) {
 			log.error("Cannot save MasterUser, cause:{}", ex.getMessage(), ex);
-			throw new Exception("Cannot save MasterUser, cause:" + ex.getMessage());
+			if(ex.getMessage().toLowerCase().indexOf("unique constraint")>-1)
+				throw new Exception("Data already exists");
+			else
+				throw new Exception("Cannot save MasterUser, cause:" + ex.getMessage());
 		}
 	}
 
@@ -97,7 +101,10 @@ public class MasterUserServiceImpl extends DaoUtils implements MasterUserService
 			log.info("Update MasterUser with id:{} successfully", dto.getId());
 		} catch (Exception ex) {
 			log.error("Cannot update MasterUser, cause:{}", ex.getMessage(), ex);
-			throw new Exception("Cannot update MasterUser, cause:" + ex.getMessage());
+			if(ex.getMessage().toLowerCase().indexOf("unique constraint")>-1)
+				throw new Exception("Data already exists");
+			else
+				throw new Exception("Cannot update MasterUser, cause:" + ex.getMessage());
 		}
 	}
 
@@ -163,11 +170,18 @@ public class MasterUserServiceImpl extends DaoUtils implements MasterUserService
 	}
 
 	@Override
-	public Long count(PssFilter filter) throws Exception {
+	public Long count(PssFilter filter, StatusActive statusActive) throws Exception {
+		Map<String, Object> param = generateCountPssParameter(filter);
+		param.put("appname", this.appname);
+
 		String sql = "SELECT COUNT(u.id) FROM cm_sec_user u " 
 				   + "INNER JOIN cm_sec_role r ON r.id = u.roleid "
 				   + "WHERE u.appname = :appname AND u.is_deleted=0 "
 				   + "  AND r.appname = :appname AND r.is_deleted=0 ";
+		if(statusActive!=null) {
+			sql += "    AND u.is_active=:isActive AND r.is_active=:isActive ";
+			param.put("isActive", statusActive.equals(StatusActive.YES) ? 1 : 0);
+		}
 		if (StringUtils.hasText(filter.getSearch().get(PSS_SEARCH_VAL))) {
 			sql += "    AND ( ";
 			sql += "            lower(u.username) LIKE :filter ";
@@ -175,8 +189,6 @@ public class MasterUserServiceImpl extends DaoUtils implements MasterUserService
 			sql += "    ) ";
 		}
 
-		Map<String, Object> param = generateCountPssParameter(filter);
-		param.put("appname", this.appname);
 		log.info("Count list data MasterUser filter by {}", param);
 
 		try {
@@ -188,8 +200,11 @@ public class MasterUserServiceImpl extends DaoUtils implements MasterUserService
 	}
 
 	@Override
-	public List<MasterUserDTO> filter(PssFilter filter) throws Exception {
-		String[] orderableColums = new String[]{"ID", "USERNAME", "ROLENAME"};
+	public List<MasterUserDTO> filter(PssFilter filter, StatusActive statusActive) throws Exception {
+		String[] orderableColums = new String[]{"id", "username", "rolename"};
+		Map<String, Object> param = generatePssParameter(filter);
+		param.put("appname", this.appname);
+
 		String sql = "SELECT * FROM ( " 
 				   + "    SELECT DT.*, " 
 				   + "           row_number() over ( "
@@ -200,6 +215,10 @@ public class MasterUserServiceImpl extends DaoUtils implements MasterUserService
 				   + "        INNER JOIN cm_sec_role r ON r.id = u.roleid " 
 				   + "        WHERE u.appname = :appname AND u.is_deleted=0 "
 				   + "          AND r.appname = :appname AND r.is_deleted=0 ";
+		if(statusActive!=null) {
+			sql += "            AND u.is_active=:isActive AND r.is_active=:isActive ";
+			param.put("isActive", statusActive.equals(StatusActive.YES) ? 1 : 0);
+		}
 		if (StringUtils.hasText(filter.getSearch().get(PSS_SEARCH_VAL))) {
 			sql += "          AND ( ";
 			sql += "            lower(u.username) LIKE :filter ";
@@ -210,8 +229,6 @@ public class MasterUserServiceImpl extends DaoUtils implements MasterUserService
 		sql += "          ) DT ";
 		sql += "     ) WHERE line_number BETWEEN :start_row AND :end_row ORDER BY line_number";
 
-		Map<String, Object> param = generatePssParameter(filter);
-		param.put("appname", this.appname);
 		log.info("Get list data MasterUser filter by {}", param);
 
 		try {
@@ -224,8 +241,8 @@ public class MasterUserServiceImpl extends DaoUtils implements MasterUserService
 		}
 	}
 	
-	public List<MasterUserDTO> filterFetchEager(PssFilter filter) throws Exception {
-		List<MasterUserDTO> list = filter(filter);
+	public List<MasterUserDTO> filterFetchEager(PssFilter filter, StatusActive statusActive) throws Exception {
+		List<MasterUserDTO> list = filter(filter, statusActive);
 		for (MasterUserDTO dto : list) {
 			Optional<MasterRoleDTO> role = roleService.findOneFetchEager(dto.getRole().getId());
 			dto.setRole(role.isPresent() ? role.get() : null);
@@ -247,7 +264,10 @@ public class MasterUserServiceImpl extends DaoUtils implements MasterUserService
 			log.info("Delete MasterUser with id:{} successfully", id);
 		} catch (Exception ex) {
 			if (ex.getMessage().toLowerCase().contentEquals("constraint")) {
-				q = "UPDATE cm_sec_user SET is_deleted=1 WHERE id=? AND appname=?";
+				q = "UPDATE cm_sec_user SET "
+				  + "       is_deleted=1, "
+				  + "       username=CONCAT(username, CONCAT('-', id)) "
+				  + "WHERE id=? AND appname=?";
 				try {
 					log.warn("MasterUser with id:{} will be flag as isDeleted", id);
 					getJdbcTemplate(datasource).update(q, id, this.appname);

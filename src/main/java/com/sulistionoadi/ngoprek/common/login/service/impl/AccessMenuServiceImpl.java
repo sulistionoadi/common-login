@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import com.sulistionoadi.ngoprek.common.dto.StatusActive;
 import com.sulistionoadi.ngoprek.common.dto.security.AccessMenuDTO;
 import com.sulistionoadi.ngoprek.common.login.rowmapper.AccessMenuRowMapper;
 import com.sulistionoadi.ngoprek.common.login.service.AccessMenuService;
@@ -61,7 +62,10 @@ public class AccessMenuServiceImpl extends DaoUtils implements AccessMenuService
 			log.info("Save AccessMenu successfully");
 		} catch (Exception ex) {
 			log.error("Cannot save AccessMenu, cause:{}", ex.getMessage(), ex);
-			throw new Exception("Cannot save AccessMenu, cause:" + ex.getMessage());
+			if(ex.getMessage().toLowerCase().indexOf("unique constraint")>-1)
+				throw new Exception("Data already exists");
+			else
+				throw new Exception("Cannot save AccessMenu, cause:" + ex.getMessage());				
 		}
 	}
 
@@ -88,7 +92,10 @@ public class AccessMenuServiceImpl extends DaoUtils implements AccessMenuService
 			log.info("Update AccessMenu with id:{} successfully", dto.getId());
 		} catch (Exception ex) {
 			log.error("Cannot update AccessMenu, cause:{}", ex.getMessage(), ex);
-			throw new Exception("Cannot update AccessMenu, cause:" + ex.getMessage());
+			if(ex.getMessage().toLowerCase().indexOf("unique constraint")>-1)
+				throw new Exception("Data already exists");
+			else
+				throw new Exception("Cannot update AccessMenu, cause:" + ex.getMessage());
 		}
 	}
 
@@ -111,20 +118,27 @@ public class AccessMenuServiceImpl extends DaoUtils implements AccessMenuService
 	}
 
 	@Override
-	public Long count(PssFilter filter) throws Exception {
+	public Long count(PssFilter filter, StatusActive statusActive) throws Exception {
+		Map<String, Object> param = generateCountPssParameter(filter);
+		param.put("appname", this.appname);
+
 		String sql = "SELECT COUNT(c.id) FROM cm_sec_menu c "
 				   + "INNER JOIN cm_sec_menu p ON p.id = c.parentid " 
 				   + "WHERE c.appname = :appname and c.is_deleted=0 "
-				   + "  AND p.appname = :appname and p.is_deleted=0";
+				   + "  AND p.appname = :appname and p.is_deleted=0 ";
+		
+		if(statusActive!=null) {
+			sql += "    AND c.is_active=:isActive AND p.is_active=:isActive ";
+			param.put("isActive", statusActive.equals(StatusActive.YES) ? 1 : 0);
+		}
+		
 		if (StringUtils.hasText(filter.getSearch().get(PSS_SEARCH_VAL))) {
 			sql += "    AND ( ";
 			sql += "            lower(c.MENUCODE) LIKE :filter ";
 			sql += "        OR  lower(c.MENUNAME) LIKE :filter ";
 			sql += "    ) ";
 		}
-
-		Map<String, Object> param = generateCountPssParameter(filter);
-		param.put("appname", this.appname);
+		
 		log.info("Count list data AccessMenu filter by {}", param);
 
 		try {
@@ -136,7 +150,10 @@ public class AccessMenuServiceImpl extends DaoUtils implements AccessMenuService
 	}
 
 	@Override
-	public List<AccessMenuDTO> filter(PssFilter filter) throws Exception {
+	public List<AccessMenuDTO> filter(PssFilter filter, StatusActive statusActive) throws Exception {
+		Map<String, Object> param = generatePssParameter(filter);
+		param.put("appname", this.appname);
+
 		String sql = "SELECT * FROM ( " 
 				   + "    SELECT DT.*, " 
 				   + "           row_number() over ( "
@@ -147,6 +164,12 @@ public class AccessMenuServiceImpl extends DaoUtils implements AccessMenuService
 				   + "        INNER JOIN cm_sec_menu p ON p.id = c.parentid " 
 				   + "        WHERE c.appname = :appname and c.is_deleted=0 "
 				   + "          AND p.appname = :appname and p.is_deleted=0 ";
+		
+		if(statusActive!=null) {
+			sql += "    AND c.is_active=:isActive AND p.is_active=:isActive ";
+			param.put("isActive", statusActive.equals(StatusActive.YES) ? 1 : 0);
+		}
+		
 		if (StringUtils.hasText(filter.getSearch().get(PSS_SEARCH_VAL))) {
 			  sql += "          AND ( ";
 			  sql += "                 lower(c.MENUCODE) LIKE :filter ";
@@ -156,8 +179,6 @@ public class AccessMenuServiceImpl extends DaoUtils implements AccessMenuService
 		      sql += "    ) DT ";
 		      sql += ") WHERE line_number BETWEEN :start_row AND :end_row ORDER BY line_number";
 
-		Map<String, Object> param = generatePssParameter(filter);
-		param.put("appname", this.appname);
 		log.info("Get list data AccessMenu filter by {}", param);
 
 		try {
@@ -184,7 +205,10 @@ public class AccessMenuServiceImpl extends DaoUtils implements AccessMenuService
 			log.info("Delete AccessMenu with id:{} successfully", id);
 		} catch (Exception ex) {
 			if (ex.getMessage().toLowerCase().contentEquals("constraint")) {
-				q = "UPDATE cm_sec_menu SET is_deleted=1 WHERE id=? AND appname=?";
+				q = "UPDATE cm_sec_menu SET "
+				  + "       is_deleted=1, "
+				  + "       menucode=CONCAT(menucode, CONCAT('-', id)) "
+				  + "WHERE id=? AND appname=?";
 				try {
 					log.warn("AccessMenu with id:{} will be flag as isDeleted", id);
 					getJdbcTemplate(datasource).update(q, id, this.appname);
@@ -224,7 +248,7 @@ public class AccessMenuServiceImpl extends DaoUtils implements AccessMenuService
 				   + "       map.act_pdf, map.act_save, map.act_remove "
 				   + "FROM cm_sec_menu menu, cm_sec_role_menu map "
 				   + "WHERE menu.id = map.menuid AND map.roleid = ? AND menu.parentid IS NULL "
-				   + "  AND menu.is_deleted=0 AND menu.appname=?"
+				   + "  AND menu.is_deleted=0 AND menu.appname=? AND menu.is_active=1 "
 				   + "ORDER BY menu.priority ASC";
 		try {
 			List<AccessMenuDTO> parents = getJdbcTemplate(datasource).query(sql, new Object[] { roleid, this.appname },
@@ -246,7 +270,7 @@ public class AccessMenuServiceImpl extends DaoUtils implements AccessMenuService
 				   + "       map.act_pdf, map.act_save, map.act_remove "
 				   + "FROM cm_sec_menu menu, cm_sec_role_menu map "
 				   + "WHERE menu.id = map.menuid AND map.roleid = ? AND menu.parentid = ? "
-				   + "  AND menu.is_deleted=0 AND menu.appname=?"
+				   + "  AND menu.is_deleted=0 AND menu.appname=? AND menu.is_active=1 "
 				   + "ORDER BY menu.priority ASC";
 		try {
 			List<AccessMenuDTO> parents = getJdbcTemplate(datasource).query(sql, new Object[] { roleid, parentid, this.appname},
