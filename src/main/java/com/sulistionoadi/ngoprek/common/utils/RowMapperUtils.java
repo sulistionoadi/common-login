@@ -22,9 +22,7 @@ public class RowMapperUtils {
 				bool = Boolean.TRUE;
 				break;
 			default:
-				log.warn("Invalid value {}={} at row:{}", columnName, columnVal, rowNum);
-				throw new IllegalStateException(MessageFormat.format("Invalid value {0}={1} at row:{2}", columnName,
-						columnVal.toString(), String.valueOf(rowNum)));
+				throwError(columnName, columnVal, rowNum);
 			}
 		}
 		return bool;
@@ -33,6 +31,12 @@ public class RowMapperUtils {
 	public static Date getDateValue(ResultSet rs, int rowNum, String columnName) throws SQLException {
 		java.sql.Date columnVal = rs.getDate(columnName);
 		return columnVal!=null ? new Date(columnVal.getTime()) : null;
+	}
+	
+	public static void throwError(String columnName, Object columnVal, int rowNum) {
+		log.warn("Invalid value {}={} at row:{}", columnName, columnVal, rowNum);
+		throw new IllegalStateException(MessageFormat.format("Invalid value {0}={1} at row:{2}", columnName,
+				columnVal.toString(), String.valueOf(rowNum)));
 	}
 
 }
