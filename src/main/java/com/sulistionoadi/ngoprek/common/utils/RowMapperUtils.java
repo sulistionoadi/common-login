@@ -36,7 +36,7 @@ public class RowMapperUtils {
 	public static void throwError(String columnName, Object columnVal, int rowNum) {
 		log.warn("Invalid value {}={} at row:{}", columnName, columnVal, rowNum);
 		throw new IllegalStateException(MessageFormat.format("Invalid value {0}={1} at row:{2}", columnName,
-				columnVal.toString(), String.valueOf(rowNum)));
+				columnVal!=null ? columnVal.toString() : "null", String.valueOf(rowNum)));
 	}
 
 }
