@@ -6,6 +6,7 @@ import java.util.Set;
 import com.sulistionoadi.ngoprek.common.dto.BaseMasterDTO;
 
 import lombok.Builder;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -14,6 +15,7 @@ import lombok.ToString;
 @ToString
 @Getter @Setter
 @NoArgsConstructor
+@EqualsAndHashCode(callSuper = false, doNotUseGetters = true, of= {"name"})
 public class MasterRoleDTO extends BaseMasterDTO {
 	
 	private static final long serialVersionUID = -733340342573751196L;

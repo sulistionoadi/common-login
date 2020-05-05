@@ -6,6 +6,8 @@ import java.util.Set;
 
 import com.sulistionoadi.ngoprek.common.dto.StatusActive;
 import com.sulistionoadi.ngoprek.common.dto.security.AccessMenuDTO;
+import com.sulistionoadi.ngoprek.common.dto.security.MappingPrivilege;
+import com.sulistionoadi.ngoprek.common.dto.security.MasterRoleDTO;
 import com.sulistionoadi.ngoprek.common.pss.dto.PssFilter;
 
 public interface AccessMenuService {
@@ -18,5 +20,6 @@ public interface AccessMenuService {
 	public void delete(Long id) throws Exception;
 	public void setActive(Long id, Boolean bool) throws Exception;
 	public Set<AccessMenuDTO> getPermittedAccess(Long roleid) throws Exception;
+	public void saveMappingPrivilege(MasterRoleDTO role, Set<MappingPrivilege> privileges) throws Exception;
 	
 }

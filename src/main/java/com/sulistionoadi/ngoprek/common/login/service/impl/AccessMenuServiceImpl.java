@@ -5,6 +5,8 @@ import static com.sulistionoadi.ngoprek.common.pss.utils.PssUtils.generateCountP
 import static com.sulistionoadi.ngoprek.common.pss.utils.PssUtils.generatePssParameter;
 
 import java.io.Serializable;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.text.MessageFormat;
 import java.util.List;
 import java.util.Map;
@@ -17,12 +19,16 @@ import javax.sql.DataSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.ParameterizedPreparedStatementSetter;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import com.sulistionoadi.ngoprek.common.dto.StatusActive;
 import com.sulistionoadi.ngoprek.common.dto.security.AccessMenuDTO;
+import com.sulistionoadi.ngoprek.common.dto.security.MappingPrivilege;
+import com.sulistionoadi.ngoprek.common.dto.security.MasterRoleDTO;
 import com.sulistionoadi.ngoprek.common.login.rowmapper.AccessMenuRowMapper;
 import com.sulistionoadi.ngoprek.common.login.service.AccessMenuService;
 import com.sulistionoadi.ngoprek.common.pss.dto.PssFilter;
@@ -37,6 +43,9 @@ import lombok.extern.slf4j.Slf4j;
 public class AccessMenuServiceImpl extends DaoUtils implements AccessMenuService, Serializable {
 
 	private static final long serialVersionUID = 5915454856023099621L;
+	
+	@Value("${app.max.jdbc.batch:10}")
+	private Integer jdbcBatchSize;
 	
 	@Value("${app.name:MYAPP}")
 	private String appname;
@@ -284,6 +293,46 @@ public class AccessMenuServiceImpl extends DaoUtils implements AccessMenuService
 		} catch (Exception ex) {
 			log.error("Cannot get Permitted Child Menu for role id {}, cause:{}", roleid, ex.getMessage());
 			throw new Exception("Cannot get Permitted Child Menu for role_id:" + roleid + " and parent_id:" + parentid);
+		}
+	}
+
+	@Override
+	@Transactional(rollbackFor = {Exception.class})
+	public void saveMappingPrivilege(MasterRoleDTO role, Set<MappingPrivilege> privileges) throws Exception {
+		JdbcTemplate jdbcTemplate = getJdbcTemplate(this.datasource);
+		try {
+			log.info("Trying to reset Mapping Privilege for Role:{}", role.getName());
+			jdbcTemplate.update("DELETE FROM cm_sec_role_menu WHERE roleid = ?", role.getId());
+			log.info("Success to reset Mapping Privilege for Role:{}", role.getName());
+		} catch(Exception ex) {
+			log.error("Failed to reset Mapping Privilege for Role:{}, cause:{}", role.getName(), ex.getMessage(), ex);
+			throw new Exception(MessageFormat.format("Failed to reset Mapping Privilege for Role:{0}", role.getName()));
+		}
+		
+		try {
+			log.info("Trying to save Mapping Privilege for Role:{}", role.getName());
+			String q= "INSERT INTO cm_sec_role_menu ( "
+					+ "    roleid, menuid, act_filter, act_csv, act_excel, act_pdf, act_save, act_remove "
+					+ ") values (?, ?, ?, ?, ?, ?, ?, ?) ";
+			jdbcTemplate.batchUpdate(q, privileges, this.jdbcBatchSize, 
+					new ParameterizedPreparedStatementSetter<MappingPrivilege>() {
+				@Override
+				public void setValues(PreparedStatement ps, MappingPrivilege map) throws SQLException {
+					ps.setLong(1, map.getRole().getId());
+					ps.setLong(2, map.getMenu().getId());
+					ps.setInt(3, map.getActFilter());
+					ps.setInt(4, map.getActCsv());
+					ps.setInt(5, map.getActExcel());
+					ps.setInt(6, map.getActPdf());
+					ps.setInt(7, map.getActSave());
+					ps.setInt(8, map.getActRemove());
+				}
+			});
+			
+			log.info("Success to save Mapping Privilege for Role:{}", role.getName());
+		} catch(Exception ex) {
+			log.error("Failed to save Mapping Privilege for Role:{}, cause:{}", role.getName(), ex.getMessage(), ex);
+			throw new Exception(MessageFormat.format("Failed to save Mapping Privilege for Role:{0}", role.getName()));
 		}
 	}
 	
