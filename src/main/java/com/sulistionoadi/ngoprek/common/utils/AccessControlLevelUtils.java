@@ -25,16 +25,28 @@ public class AccessControlLevelUtils {
 		}
 		
 		AccessMenuDTO menuDto = session.findAccessMenuByCode(menuCode);
-		
 		Map<String, Boolean> mapAccess = new HashMap<String, Boolean>();
-		mapAccess.put(HAS_FILTER, menuDto.getActFilter());
-		mapAccess.put(HAS_CSV, menuDto.getActCsv());
-		mapAccess.put(HAS_XLS, menuDto.getActExcel());
-		mapAccess.put(HAS_PDF, menuDto.getActPdf());
-		mapAccess.put(HAS_SAVE, menuDto.getActSave());
-		mapAccess.put(HAS_REMOVE, menuDto.getActRemove());
+
+		if(menuDto!=null) {
+			mapAccess.put(HAS_FILTER, menuDto.getActFilter());
+			mapAccess.put(HAS_CSV, menuDto.getActCsv());
+			mapAccess.put(HAS_XLS, menuDto.getActExcel());
+			mapAccess.put(HAS_PDF, menuDto.getActPdf());
+			mapAccess.put(HAS_SAVE, menuDto.getActSave());
+			mapAccess.put(HAS_REMOVE, menuDto.getActRemove());			
+		}
 		
 		return mapAccess;
+	}
+	
+	public static boolean hasApi(String apiCode){
+		UserLogin session = (UserLogin) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+		if(session == null) {
+			throw new AuthenticationCredentialsNotFoundException("Invalid Session");
+		}
+		
+		AccessMenuDTO menuDto = session.findAccessApiByCode(apiCode);
+		return menuDto != null;
 	}
 	
 }

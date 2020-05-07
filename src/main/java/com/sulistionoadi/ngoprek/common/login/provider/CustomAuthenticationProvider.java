@@ -91,7 +91,7 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
 			for (AccessMenuDTO child : menu.getChilds().stream()
 					.filter(m -> m.getMenuCode().toUpperCase().startsWith("MNU"))
 					.collect(Collectors.toList())) {
-				log.debug("Add Childs : " + menu.getMenuCode());
+				log.debug("Add Childs : " + child.getMenuCode());
 				availableMenus.add(child.getMenuCode());
 			}
 		}

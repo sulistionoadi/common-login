@@ -95,4 +95,17 @@ public class UserLogin implements UserDetails {
 		return null;
 	}
 
+	public AccessMenuDTO findAccessApiByCode(String code) {
+		for (AccessMenuDTO menu : this.permittedMenu.stream()
+				.filter(m -> m.getMenuCode().toUpperCase().startsWith("API"))
+				.collect(Collectors.toList())) {
+			
+			if(menu.getMenuCode().equals(code)) {
+				return menu;
+			}
+		}
+		
+		return null;
+	}
+	
 }
