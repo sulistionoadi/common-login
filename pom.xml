@@ -7,7 +7,7 @@
 
 	<groupId>com.sulistionoadi.ngoprek</groupId>
 	<artifactId>common-login</artifactId>
-	<version>1.0.0</version>
+	<version>1.1.0</version>
 	<packaging>jar</packaging>
 
 	<name>Common Login and User Management</name>
@@ -19,7 +19,7 @@
         <maven.compiler.source>1.8</maven.compiler.source>
 		
 		<aspectj.version>1.9.5</aspectj.version>
-		<common-pss.version>1.0.0</common-pss.version>
+		<common-dao-jdbc.version>1.0.0</common-dao-jdbc.version>
 		<javax-servlet.version>4.0.1</javax-servlet.version>
 		<lombok.version>1.18.12</lombok.version>
 		<slf4j.version>1.7.30</slf4j.version>
@@ -30,26 +30,14 @@
 	<dependencies>
 		<dependency>
 			<groupId>com.sulistionoadi.ngoprek</groupId>
-			<artifactId>common-pss</artifactId>
-			<version>${common-pss.version}</version>
+			<artifactId>common-dao-jdbc</artifactId>
+			<version>${common-dao-jdbc.version}</version>
 			<scope>compile</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
 			<version>${lombok.version}</version>
-			<scope>compile</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework</groupId>
-			<artifactId>spring-jdbc</artifactId>
-			<version>${org.springframework.version}</version>
-			<scope>compile</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-api</artifactId>
-			<version>${slf4j.version}</version>
 			<scope>compile</scope>
 		</dependency>
 		<dependency>
