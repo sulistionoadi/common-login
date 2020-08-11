@@ -19,7 +19,8 @@
         <maven.compiler.source>1.8</maven.compiler.source>
 		
 		<aspectj.version>1.9.5</aspectj.version>
-		<common-dao-jdbc.version>1.0.0</common-dao-jdbc.version>
+		<com.fasterxml.jackson.version>2.11.2</com.fasterxml.jackson.version>
+		<common-dao-jdbc.version>1.0.1</common-dao-jdbc.version>
 		<javax-servlet.version>4.0.1</javax-servlet.version>
 		<lombok.version>1.18.12</lombok.version>
 		<slf4j.version>1.7.30</slf4j.version>
@@ -68,7 +69,11 @@
 		    <artifactId>aspectjweaver</artifactId>
 		    <version>${aspectj.version}</version>
 		</dependency>
-
+		<dependency> 
+			<groupId>com.fasterxml.jackson.core</groupId> 
+			<artifactId>jackson-databind</artifactId> 
+			<version>${com.fasterxml.jackson.version}</version> 
+		</dependency> 
 	</dependencies>
 
 </project>
