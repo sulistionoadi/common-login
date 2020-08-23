@@ -5,19 +5,23 @@ import java.util.Optional;
 
 import com.sulistionoadi.ngoprek.common.dto.StatusActive;
 import com.sulistionoadi.ngoprek.common.dto.security.MasterRoleDTO;
+import com.sulistionoadi.ngoprek.common.exception.CommonException;
 import com.sulistionoadi.ngoprek.common.pss.dto.PssFilter;
 
 public interface MasterRoleService {
 
-	public void save(MasterRoleDTO dto) throws Exception;
-	public void update(MasterRoleDTO dto) throws Exception;
-	public Optional<MasterRoleDTO> findOne(Long id) throws Exception;
-	public Optional<MasterRoleDTO> findOneFetchEager(Long id) throws Exception;
-	public Long count(PssFilter filter, StatusActive statusActive) throws Exception;
-	public List<MasterRoleDTO> filter(PssFilter filter, StatusActive statusActive) throws Exception;
-	public List<MasterRoleDTO> filterFetchEager(PssFilter filter, StatusActive statusActive) throws Exception;
-	public List<MasterRoleDTO> getForSelection() throws Exception;
-	public void delete(Long id) throws Exception;
-	public void setActive(Long id, Boolean bool) throws Exception;
+	public void save(MasterRoleDTO dto) throws CommonException;
+	public void update(MasterRoleDTO dto) throws CommonException;
+	public Optional<MasterRoleDTO> findOne(Long id) throws CommonException;
+	public Optional<MasterRoleDTO> findByRolename(String rolename) throws CommonException;
+	public Optional<MasterRoleDTO> findOneFetchEager(Long id) throws CommonException;
+	public Optional<MasterRoleDTO> findByRolenameFetchEager(String rolename) throws CommonException;
+	public Long count(PssFilter filter, StatusActive statusActive) throws CommonException;
+	public List<MasterRoleDTO> filter(PssFilter filter, StatusActive statusActive) throws CommonException;
+	public List<MasterRoleDTO> filterFetchEager(PssFilter filter, StatusActive statusActive) throws CommonException;
+	public List<MasterRoleDTO> getForSelection() throws CommonException;
+	public void delete(Long id) throws CommonException;
+	public void setAsDelete(Long id, String updatedBy) throws CommonException;
+	public void setActive(Long id, Boolean bool, String updatedBy) throws CommonException;
 	
 }

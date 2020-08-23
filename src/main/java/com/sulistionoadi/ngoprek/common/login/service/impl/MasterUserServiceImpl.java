@@ -1,12 +1,12 @@
 package com.sulistionoadi.ngoprek.common.login.service.impl;
 
-import static com.sulistionoadi.ngoprek.common.pss.constant.PssConstant.PSS_SEARCH_VAL;
-import static com.sulistionoadi.ngoprek.common.pss.utils.PssUtils.generateCountPssParameter;
-import static com.sulistionoadi.ngoprek.common.pss.utils.PssUtils.generatePssParameter;
-import static com.sulistionoadi.ngoprek.common.pss.utils.PssUtils.getOrderBy;
+import static com.sulistionoadi.ngoprek.common.constant.ErrorCode.*;
+import static com.sulistionoadi.ngoprek.common.pss.constant.PssConstant.*;
+import static com.sulistionoadi.ngoprek.common.pss.utils.PssUtils.*;
 
 import java.io.Serializable;
 import java.text.MessageFormat;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -16,6 +16,7 @@ import javax.sql.DataSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -23,6 +24,7 @@ import org.springframework.util.StringUtils;
 import com.sulistionoadi.ngoprek.common.dto.StatusActive;
 import com.sulistionoadi.ngoprek.common.dto.security.MasterRoleDTO;
 import com.sulistionoadi.ngoprek.common.dto.security.MasterUserDTO;
+import com.sulistionoadi.ngoprek.common.exception.CommonException;
 import com.sulistionoadi.ngoprek.common.login.rowmapper.MasterUserRowMapper;
 import com.sulistionoadi.ngoprek.common.login.service.MasterRoleService;
 import com.sulistionoadi.ngoprek.common.login.service.MasterUserService;
@@ -49,7 +51,12 @@ public class MasterUserServiceImpl extends DaoUtils implements MasterUserService
 	private MasterRoleService roleService;
 
 	@Override
-	public void save(MasterUserDTO dto) throws Exception {
+	public void save(MasterUserDTO dto) throws CommonException {
+		Optional<MasterUserDTO> exists = findByUsername(dto.getUsername());
+		if(exists.isPresent()) {
+			throw new CommonException(RC_DATA_ALREADY_EXIST, "Username already exists");
+		}
+		
 		String sql = "INSERT INTO cm_sec_user ("
 				   + "    id, created_by, created_date, updated_by, updated_date,"
 				   + "    is_active, appname, username, password, roleid "
@@ -66,20 +73,27 @@ public class MasterUserServiceImpl extends DaoUtils implements MasterUserService
 			getNamedParameterJdbcTemplate(this.datasource).update(sql, params);
 			log.info("Save MasterUser successfully");
 		} catch (Exception ex) {
-			log.error("Cannot save MasterUser, cause:{}", ex.getMessage(), ex);
+			log.error("Cannot save MasterUser, cause:{}", ex.getMessage());
 			if(ex.getMessage().toLowerCase().indexOf("unique constraint")>-1)
-				throw new Exception("Data already exists");
+				throw new CommonException(RC_DATA_ALREADY_EXIST, "Data already exists");
 			else
-				throw new Exception("Cannot save MasterUser, cause:" + ex.getMessage());
+				throw new CommonException(RC_DB_QUERY_ERROR, "Cannot save MasterUser", ex);
 		}
 	}
 
 	@Override
-	public void update(MasterUserDTO dto) throws Exception {
+	public void update(MasterUserDTO dto) throws CommonException {
 		Optional<MasterUserDTO> op = findOne(dto.getId());
 		if (!op.isPresent()) {
-			throw new Exception("MasterUser with id:" + dto.getId() + " not found");
+			throw new CommonException(RC_DATA_NOT_FOUND, "MasterUser with id:" + dto.getId() + " not found");
 		}
+		
+		Optional<MasterUserDTO> existsByUsername = findByUsername(dto.getUsername());
+		if(existsByUsername.isPresent()) {
+			if(!existsByUsername.get().getId().equals(dto.getId()))
+				throw new CommonException(RC_DATA_ALREADY_EXIST, "Username already exists");
+		}
+		
 		validateRecordBeforeUpdate(op.get());
 
 		if (!StringUtils.hasText(dto.getPassword())) {
@@ -100,16 +114,16 @@ public class MasterUserServiceImpl extends DaoUtils implements MasterUserService
 			getNamedParameterJdbcTemplate(this.datasource).update(sql, params);
 			log.info("Update MasterUser with id:{} successfully", dto.getId());
 		} catch (Exception ex) {
-			log.error("Cannot update MasterUser, cause:{}", ex.getMessage(), ex);
+			log.error("Cannot update MasterUser, cause:{}", ex.getMessage());
 			if(ex.getMessage().toLowerCase().indexOf("unique constraint")>-1)
-				throw new Exception("Data already exists");
+				throw new CommonException(RC_DATA_ALREADY_EXIST, "Data already exists");
 			else
-				throw new Exception("Cannot update MasterUser, cause:" + ex.getMessage());
+				throw new CommonException(RC_DB_QUERY_ERROR, "Cannot update MasterUser", ex);
 		}
 	}
 
 	@Override
-	public Optional<MasterUserDTO> findOne(Long id) throws Exception {
+	public Optional<MasterUserDTO> findOne(Long id) throws CommonException {
 		String sql = "SELECT m.* FROM cm_sec_user m WHERE m.id=? AND m.appname=? AND m.is_deleted=0";
 		try {
 			log.debug("Get MasterUser with id:{}", id);
@@ -120,13 +134,13 @@ public class MasterUserServiceImpl extends DaoUtils implements MasterUserService
 			log.warn("MasterUser with id:{} not found", id);
 			return Optional.empty();
 		} catch (Exception ex) {
-			log.error("Cannot get MasterUser with id:{}, cause:{}", id, ex.getMessage(), ex);
-			throw new Exception(MessageFormat.format("Cannot get MasterUser with id:{0}", 
+			log.error("Cannot get MasterUser with id:{}, cause:{}", id, ex.getMessage());
+			throw new CommonException(MessageFormat.format("Cannot get MasterUser with id:{0}", 
 					id != null ? id.toString() : "null"), ex);
 		}
 	}
 	
-	public Optional<MasterUserDTO> findOneFetchEager(Long id) throws Exception {
+	public Optional<MasterUserDTO> findOneFetchEager(Long id) throws CommonException {
 		Optional<MasterUserDTO> op = findOne(id);
 		if(!op.isPresent()) {
 			return Optional.empty();
@@ -139,7 +153,7 @@ public class MasterUserServiceImpl extends DaoUtils implements MasterUserService
 		return op;
 	}
 	
-	public Optional<MasterUserDTO> findByUsername(String username) throws Exception {
+	public Optional<MasterUserDTO> findByUsername(String username) throws CommonException {
 		String sql = "SELECT m.* FROM cm_sec_user m WHERE m.username=? AND m.appname=? AND m.is_deleted=0";
 		try {
 			log.debug("Get MasterUser with username:{}", username);
@@ -150,13 +164,12 @@ public class MasterUserServiceImpl extends DaoUtils implements MasterUserService
 			log.warn("MasterUser with username:{} not found", username);
 			return Optional.empty();
 		} catch (Exception ex) {
-			log.error("Cannot get MasterUser with username:{}, cause:{}", username, ex.getMessage(), ex);
-			throw new Exception(MessageFormat.format(
-					"Cannot get MasterUser with username:{0}", username), ex);
+			log.error("Cannot get MasterUser with username:{}, cause:{}", username, ex.getMessage());
+			throw new CommonException(MessageFormat.format("Cannot get MasterUser with username:{0}", username), ex);
 		}
 	}
 	
-	public Optional<MasterUserDTO> findByUsernameFetchEager(String username) throws Exception {
+	public Optional<MasterUserDTO> findByUsernameFetchEager(String username) throws CommonException {
 		Optional<MasterUserDTO> op = findByUsername(username);
 		if(!op.isPresent()) {
 			return Optional.empty();
@@ -170,7 +183,7 @@ public class MasterUserServiceImpl extends DaoUtils implements MasterUserService
 	}
 
 	@Override
-	public Long count(PssFilter filter, StatusActive statusActive) throws Exception {
+	public Long count(PssFilter filter, StatusActive statusActive) throws CommonException {
 		Map<String, Object> param = generateCountPssParameter(filter);
 		param.put("appname", this.appname);
 
@@ -194,13 +207,13 @@ public class MasterUserServiceImpl extends DaoUtils implements MasterUserService
 		try {
 			return getNamedParameterJdbcTemplate(datasource).queryForObject(sql, param, Long.class);
 		} catch (Exception ex) {
-			log.error("Cannot get count list data MasterUser, cause:{}", ex.getMessage(), ex);
-			throw new Exception("Cannot get count list data MasterUser");
+			log.error("Cannot get count list data MasterUser, cause:{}", ex.getMessage());
+			throw new CommonException(RC_DB_QUERY_ERROR, "Cannot get count list data MasterUser", ex);
 		}
 	}
 
 	@Override
-	public List<MasterUserDTO> filter(PssFilter filter, StatusActive statusActive) throws Exception {
+	public List<MasterUserDTO> filter(PssFilter filter, StatusActive statusActive) throws CommonException {
 		String[] orderableColums = new String[]{"id", "username", "rolename"};
 		Map<String, Object> param = generatePssParameter(filter);
 		param.put("appname", this.appname);
@@ -236,12 +249,12 @@ public class MasterUserServiceImpl extends DaoUtils implements MasterUserService
 					new MasterUserRowMapper());
 			return datas;
 		} catch (Exception ex) {
-			log.error("Cannot get list data MasterUser, cause:{}", ex.getMessage(), ex);
-			throw new Exception(MessageFormat.format("Cannot get list data MasterUser, cause:{0}", ex.getMessage()));
+			log.error("Cannot get list data MasterUser, cause:{}", ex.getMessage());
+			throw new CommonException(RC_DB_QUERY_ERROR, "Cannot get list data MasterUser", ex);
 		}
 	}
 	
-	public List<MasterUserDTO> filterFetchEager(PssFilter filter, StatusActive statusActive) throws Exception {
+	public List<MasterUserDTO> filterFetchEager(PssFilter filter, StatusActive statusActive) throws CommonException {
 		List<MasterUserDTO> list = filter(filter, statusActive);
 		for (MasterUserDTO dto : list) {
 			Optional<MasterRoleDTO> role = roleService.findOneFetchEager(dto.getRole().getId());
@@ -251,10 +264,10 @@ public class MasterUserServiceImpl extends DaoUtils implements MasterUserService
 	}
 	
 	@Override
-	public void delete(Long id) throws Exception {
+	public void delete(Long id) throws CommonException {
 		Optional<MasterUserDTO> op = this.findOne(id);
 		if (!op.isPresent()) {
-			throw new Exception("MasterUser with id:" + id + " not found");
+			throw new CommonException(RC_DATA_NOT_FOUND, "MasterUser with id:" + id + " not found");
 		}
 
 		validateRecordBeforeUpdate(op.get());
@@ -263,43 +276,54 @@ public class MasterUserServiceImpl extends DaoUtils implements MasterUserService
 			getJdbcTemplate(datasource).update(q, id, this.appname);
 			log.info("Delete MasterUser with id:{} successfully", id);
 		} catch (Exception ex) {
-			if (ex.getMessage().toLowerCase().contentEquals("constraint")) {
-				q = "UPDATE cm_sec_user SET "
-				  + "       is_deleted=1, "
-				  + "       username=CONCAT(username, CONCAT('-', id)) "
-				  + "WHERE id=? AND appname=?";
-				try {
-					log.warn("MasterUser with id:{} will be flag as isDeleted", id);
-					getJdbcTemplate(datasource).update(q, id, this.appname);
-					log.info("Flag isDeleted for MasterUser with id:{} successfully", id);
-				} catch(Exception ex1) {
-					log.error("Cannot flag isDeleted for MasterUser with id:{}, cause:{}", id, ex.getMessage(), ex);
-					throw new Exception("Cannot flag isDeleted for MasterUser with id:" + id);
-				}
-			} else {
-				log.error("Cannot delete MasterUser with id:{}, cause:{}", id, ex.getMessage(), ex);
-				throw new Exception("Cannot delete MasterUser with id:" + id);
-			}
+			log.error("Cannot delete MasterUser with id:{}, cause:{}", id, ex.getMessage());
+			throw new CommonException(RC_DB_QUERY_ERROR, "Cannot delete MasterUser with id:" + id, ex);
+		}
+	}
+	
+	@Override
+	public void setAsDelete(Long id, String updatedBy) throws CommonException {
+		Optional<MasterUserDTO> op = this.findOne(id);
+		if (!op.isPresent()) {
+			throw new CommonException(RC_DATA_NOT_FOUND, "MasterUser with id:" + id + " not found");
+		}
+
+		JdbcTemplate jdbcTemplate = getJdbcTemplate(datasource);
+		validateRecordBeforeUpdate(op.get());
+
+		try {
+			String q = "UPDATE cm_sec_user SET "
+					 + "       is_deleted=1, "
+					 + "       username=CONCAT(username, CONCAT('-', id)), "
+					 + "       updated_by=?, updated_date=? "
+					 + "WHERE id=? AND appname=?";
+			
+			log.warn("MasterUser with id:{} will be flag as isDeleted", id);
+			jdbcTemplate.update(q, updatedBy, new Date(), id, this.appname);
+			log.info("Flag isDeleted for MasterUser with id:{} successfully", id);
+		} catch(Exception ex) {
+			log.error("Cannot flag isDeleted for MasterUser with id:{}, cause:{}", id, ex.getMessage());
+			throw new CommonException(RC_DB_QUERY_ERROR, "Cannot flag isDeleted for MasterUser with id:" + id, ex);
 		}
 	}
 
 	@Override
-	public void setActive(Long id, Boolean bool) throws Exception {
+	public void setActive(Long id, Boolean bool, String updatedBy) throws CommonException {
 		Optional<MasterUserDTO> op = this.findOne(id);
 		if (!op.isPresent()) {
-			throw new Exception("MasterUser with id:" + id + " not found");
+			throw new CommonException(RC_DATA_NOT_FOUND, "MasterUser with id:" + id + " not found");
 		}
 		
 		validateRecordBeforeUpdate(op.get());
-		String q = "UPDATE cm_sec_user SET is_active=? WHERE id=? AND appname=?";
+		String q = "UPDATE cm_sec_user SET is_active=?, updated_by=?, updated_date=? WHERE id=? AND appname=?";
 		try {
 			Integer boolVal = bool ? 1:0;
-			getJdbcTemplate(datasource).update(q, boolVal, id, this.appname);
+			getJdbcTemplate(datasource).update(q, boolVal, updatedBy, new Date(), id, this.appname);
 			log.info("Flag active status for MasterUser with id:{} successfully", id);
 		} catch (Exception ex) {
-			log.error("Cannot update flag active for MasterUser with id:{}, cause:{}", id, ex.getMessage(), ex);
-			throw new Exception("Cannot update flag active for MasterUser with id:" + id);
+			log.error("Cannot update flag active for MasterUser with id:{}, cause:{}", id, ex.getMessage());
+			throw new CommonException(RC_DB_QUERY_ERROR, "Cannot update flag active for MasterUser with id:" + id, ex);
 		}
 	}
-	
+
 }

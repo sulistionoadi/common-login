@@ -1,13 +1,14 @@
 package com.sulistionoadi.ngoprek.common.login.service.impl;
 
-import static com.sulistionoadi.ngoprek.common.pss.constant.PssConstant.PSS_SEARCH_VAL;
-import static com.sulistionoadi.ngoprek.common.pss.utils.PssUtils.generateCountPssParameter;
-import static com.sulistionoadi.ngoprek.common.pss.utils.PssUtils.generatePssParameter;
+import static com.sulistionoadi.ngoprek.common.constant.ErrorCode.*;
+import static com.sulistionoadi.ngoprek.common.pss.constant.PssConstant.*;
+import static com.sulistionoadi.ngoprek.common.pss.utils.PssUtils.*;
 
 import java.io.Serializable;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.text.MessageFormat;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -29,6 +30,7 @@ import com.sulistionoadi.ngoprek.common.dto.StatusActive;
 import com.sulistionoadi.ngoprek.common.dto.security.AccessMenuDTO;
 import com.sulistionoadi.ngoprek.common.dto.security.MappingPrivilege;
 import com.sulistionoadi.ngoprek.common.dto.security.MasterRoleDTO;
+import com.sulistionoadi.ngoprek.common.exception.CommonException;
 import com.sulistionoadi.ngoprek.common.login.rowmapper.AccessMenuRowMapper;
 import com.sulistionoadi.ngoprek.common.login.service.AccessMenuService;
 import com.sulistionoadi.ngoprek.common.pss.dto.PssFilter;
@@ -54,7 +56,7 @@ public class AccessMenuServiceImpl extends DaoUtils implements AccessMenuService
 	private DataSource datasource;
 
 	@Override
-	public void save(AccessMenuDTO dto) throws Exception {
+	public void save(AccessMenuDTO dto) throws CommonException {
 		String sql = "INSERT INTO cm_sec_menu ("
 				   + "    id, created_by, created_date, updated_by, updated_date, is_active, appname, "
 				   + "    menucode, menuname, priority, parentid"
@@ -70,19 +72,19 @@ public class AccessMenuServiceImpl extends DaoUtils implements AccessMenuService
 			getNamedParameterJdbcTemplate(this.datasource).update(sql, params);
 			log.info("Save AccessMenu successfully");
 		} catch (Exception ex) {
-			log.error("Cannot save AccessMenu, cause:{}", ex.getMessage(), ex);
+			log.error("Cannot save AccessMenu, cause:{}", ex.getMessage());
 			if(ex.getMessage().toLowerCase().indexOf("unique constraint")>-1)
-				throw new Exception("Data already exists");
+				throw new CommonException(RC_DATA_ALREADY_EXIST, "Data already exists");
 			else
-				throw new Exception("Cannot save AccessMenu, cause:" + ex.getMessage());				
+				throw new CommonException(RC_DB_QUERY_ERROR, "Cannot save AccessMenu", ex);				
 		}
 	}
 
 	@Override
-	public void update(AccessMenuDTO dto) throws Exception {
+	public void update(AccessMenuDTO dto) throws CommonException {
 		Optional<AccessMenuDTO> op = findOne(dto.getId());
 		if (!op.isPresent()) {
-			throw new Exception("AccessMenu with id:" + dto.getId() + " not found");
+			throw new CommonException(RC_DATA_NOT_FOUND, "AccessMenu with id:" + dto.getId() + " not found");
 		}
 		
 		validateRecordBeforeUpdate(op.get());
@@ -100,16 +102,16 @@ public class AccessMenuServiceImpl extends DaoUtils implements AccessMenuService
 			getNamedParameterJdbcTemplate(this.datasource).update(sql, params);
 			log.info("Update AccessMenu with id:{} successfully", dto.getId());
 		} catch (Exception ex) {
-			log.error("Cannot update AccessMenu, cause:{}", ex.getMessage(), ex);
+			log.error("Cannot update AccessMenu, cause:{}", ex.getMessage());
 			if(ex.getMessage().toLowerCase().indexOf("unique constraint")>-1)
-				throw new Exception("Data already exists");
+				throw new CommonException(RC_DATA_ALREADY_EXIST, "Data already exists");
 			else
-				throw new Exception("Cannot update AccessMenu, cause:" + ex.getMessage());
+				throw new CommonException(RC_DB_QUERY_ERROR, "Cannot update AccessMenu", ex);
 		}
 	}
 
 	@Override
-	public Optional<AccessMenuDTO> findOne(Long id) throws Exception {
+	public Optional<AccessMenuDTO> findOne(Long id) throws CommonException {
 		String sql = "SELECT m.* FROM cm_sec_menu m WHERE m.id=? AND m.appname=? AND m.is_deleted=0";
 		try {
 			log.debug("Get AccessMenu with id:{}", id);
@@ -120,14 +122,14 @@ public class AccessMenuServiceImpl extends DaoUtils implements AccessMenuService
 			log.warn("AccessMenu with id:{} not found", id);
 			return Optional.empty();
 		} catch (Exception ex) {
-			log.error("Cannot get AccessMenu with id:{}, cause:{}", id, ex.getMessage(), ex);
-			throw new Exception(MessageFormat.format("Cannot get AccessMenu with id:{0}", 
+			log.error("Cannot get AccessMenu with id:{}, cause:{}", id, ex.getMessage());
+			throw new CommonException(RC_DB_QUERY_ERROR, MessageFormat.format("Cannot get AccessMenu with id:{0}", 
 					id != null ? id.toString() : "null"), ex);
 		}
 	}
 
 	@Override
-	public Long count(PssFilter filter, StatusActive statusActive) throws Exception {
+	public Long count(PssFilter filter, StatusActive statusActive) throws CommonException {
 		Map<String, Object> param = generateCountPssParameter(filter);
 		param.put("appname", this.appname);
 
@@ -153,13 +155,13 @@ public class AccessMenuServiceImpl extends DaoUtils implements AccessMenuService
 		try {
 			return getNamedParameterJdbcTemplate(datasource).queryForObject(sql, param, Long.class);
 		} catch (Exception ex) {
-			log.error("Cannot get count list data AccessMenu, cause:{}", ex.getMessage(), ex);
-			throw new Exception("Cannot get count list data AccessMenu");
+			log.error("Cannot get count list data AccessMenu, cause:{}", ex.getMessage());
+			throw new CommonException(RC_DB_QUERY_ERROR, "Cannot get count list data AccessMenu", ex);
 		}
 	}
 
 	@Override
-	public List<AccessMenuDTO> filter(PssFilter filter, StatusActive statusActive) throws Exception {
+	public List<AccessMenuDTO> filter(PssFilter filter, StatusActive statusActive) throws CommonException {
 		Map<String, Object> param = generatePssParameter(filter);
 		param.put("appname", this.appname);
 
@@ -195,16 +197,16 @@ public class AccessMenuServiceImpl extends DaoUtils implements AccessMenuService
 					new AccessMenuRowMapper());
 			return datas;
 		} catch (Exception ex) {
-			log.error("Cannot get list data AccessMenu, cause:{}", ex.getMessage(), ex);
-			throw new Exception(MessageFormat.format("Cannot get list data AccessMenu, cause:{0}", ex.getMessage()));
+			log.error("Cannot get list data AccessMenu, cause:{}", ex.getMessage());
+			throw new CommonException(RC_DB_QUERY_ERROR, "Cannot get list data AccessMenu", ex);
 		}
 	}
 
 	@Override
-	public void delete(Long id) throws Exception {
+	public void delete(Long id) throws CommonException {
 		Optional<AccessMenuDTO> op = this.findOne(id);
 		if (!op.isPresent()) {
-			throw new Exception("AccessMenu with id:" + id + " not found");
+			throw new CommonException(RC_DATA_NOT_FOUND, "AccessMenu with id:" + id + " not found");
 		}
 		
 		validateRecordBeforeUpdate(op.get());
@@ -213,45 +215,58 @@ public class AccessMenuServiceImpl extends DaoUtils implements AccessMenuService
 			getJdbcTemplate(datasource).update(q, id, this.appname);
 			log.info("Delete AccessMenu with id:{} successfully", id);
 		} catch (Exception ex) {
-			if (ex.getMessage().toLowerCase().contentEquals("constraint")) {
-				q = "UPDATE cm_sec_menu SET "
-				  + "       is_deleted=1, "
-				  + "       menucode=CONCAT(menucode, CONCAT('-', id)) "
-				  + "WHERE id=? AND appname=?";
-				try {
-					log.warn("AccessMenu with id:{} will be flag as isDeleted", id);
-					getJdbcTemplate(datasource).update(q, id, this.appname);
-				} catch(Exception ex1) {
-					log.error("Cannot flag isDeleted for AccessMenu with id:{}, cause:{}", id, ex.getMessage(), ex);
-					throw new Exception("Cannot flag isDeleted for AccessMenu with id:" + id);
-				}
-			} else {
-				log.error("Cannot delete AccessMenu with id:{}, cause:{}", id, ex.getMessage(), ex);
-				throw new Exception("Cannot delete AccessMenu with id:" + id);
-			}
+			log.error("Cannot delete AccessMenu with id:{}, cause:{}", id, ex.getMessage());
+			throw new CommonException(RC_DB_QUERY_ERROR, "Cannot delete AccessMenu with id:" + id, ex);
+		}
+	}
+	
+	@Override
+	public void setAsDelete(Long id, String updatedBy) throws CommonException {
+		Optional<AccessMenuDTO> op = this.findOne(id);
+		if (!op.isPresent()) {
+			throw new CommonException(RC_DATA_NOT_FOUND, "AccessMenu with id:" + id + " not found");
+		}
+
+		JdbcTemplate jdbcTemplate = getJdbcTemplate(datasource);
+		validateRecordBeforeUpdate(op.get());
+
+		try {
+			
+			String q = "UPDATE cm_sec_menu SET "
+					 + "       is_deleted=1, "
+					 + "       menucode=CONCAT(menucode, CONCAT('-', id)), "
+					 + "       updated_by=?, updated_date=? "
+					 + "WHERE id=? AND appname=?";
+			
+			log.warn("AccessMenu with id:{} will be flag as isDeleted", id);
+			jdbcTemplate.update(q, updatedBy, new Date(), id, this.appname);
+			log.info("Flag isDeleted for AccessMenu with id:{} successfully", id);
+		} catch(Exception ex) {
+			log.error("Cannot flag isDeleted for AccessMenu with id:{}, cause:{}", id, ex.getMessage());
+			throw new CommonException(RC_DB_QUERY_ERROR, "Cannot flag isDeleted for AccessMenu with id:" + id, ex);
 		}
 	}
 
 	@Override
-	public void setActive(Long id, Boolean bool) throws Exception {
+	public void setActive(Long id, Boolean bool, String updatedBy) throws CommonException {
 		Optional<AccessMenuDTO> op = this.findOne(id);
 		if (!op.isPresent()) {
-			throw new Exception("AccessMenu with id:" + id + " not found");
+			throw new CommonException(RC_DATA_NOT_FOUND, "AccessMenu with id:" + id + " not found");
 		}
 		
 		validateRecordBeforeUpdate(op.get());
-		String q = "UPDATE cm_sec_menu SET is_active=? WHERE id=? AND appname=?";
+		String q = "UPDATE cm_sec_menu SET is_active=?, updated_by=?, updated_date=? WHERE id=? AND appname=?";
 		try {
 			Integer boolVal = bool ? 1:0;
-			getJdbcTemplate(datasource).update(q, boolVal, id, this.appname);
+			getJdbcTemplate(datasource).update(q, boolVal, updatedBy, new Date(), id, this.appname);
 			log.info("Flag active status for AccessMenu with id:{} successfully", id);
 		} catch (Exception ex) {
-			log.error("Cannot update flag active for AccessMenu with id:{}, cause:{}", id, ex.getMessage(), ex);
-			throw new Exception("Cannot update flag active for AccessMenu with id:" + id);
+			log.error("Cannot update flag active for AccessMenu with id:{}, cause:{}", id, ex.getMessage());
+			throw new CommonException(RC_DB_QUERY_ERROR, "Cannot update flag active for AccessMenu with id:" + id, ex);
 		}
 	}
 	
-	public Set<AccessMenuDTO> getPermittedAccess(Long roleid) throws Exception {
+	public Set<AccessMenuDTO> getPermittedAccess(Long roleid) throws CommonException {
 		String sql = "SELECT menu.*, "
 				   + "       map.act_filter, map.act_csv, map.act_excel, "
 				   + "       map.act_pdf, map.act_save, map.act_remove "
@@ -267,9 +282,9 @@ public class AccessMenuServiceImpl extends DaoUtils implements AccessMenuService
 			}
 			return parents.stream().collect(Collectors.toSet());
 		} catch (Exception ex) {
-			log.error("Cannot get Permitted Menu for role_id {}, cause:{}", roleid, ex.getMessage(), ex);
-			throw new Exception(MessageFormat.format("Cannot get Permitted Menu for role_id {0,number,#}, cause:{1}",
-					roleid, ex.getMessage()));
+			log.error("Cannot get Permitted Menu for role_id {}, cause:{}", roleid, ex.getMessage());
+			throw new CommonException(RC_DB_QUERY_ERROR, MessageFormat.format("Cannot get Permitted Menu for role_id {0,number,#}",
+					roleid), ex);
 		}
 	}
 
@@ -298,15 +313,15 @@ public class AccessMenuServiceImpl extends DaoUtils implements AccessMenuService
 
 	@Override
 	@Transactional(rollbackFor = {Exception.class})
-	public void saveMappingPrivilege(MasterRoleDTO role, Set<MappingPrivilege> privileges) throws Exception {
+	public void saveMappingPrivilege(MasterRoleDTO role, Set<MappingPrivilege> privileges) throws CommonException {
 		JdbcTemplate jdbcTemplate = getJdbcTemplate(this.datasource);
 		try {
 			log.info("Trying to reset Mapping Privilege for Role:{}", role.getName());
 			jdbcTemplate.update("DELETE FROM cm_sec_role_menu WHERE roleid = ?", role.getId());
 			log.info("Success to reset Mapping Privilege for Role:{}", role.getName());
 		} catch(Exception ex) {
-			log.error("Failed to reset Mapping Privilege for Role:{}, cause:{}", role.getName(), ex.getMessage(), ex);
-			throw new Exception(MessageFormat.format("Failed to reset Mapping Privilege for Role:{0}", role.getName()));
+			log.error("Failed to reset Mapping Privilege for Role:{}, cause:{}", role.getName(), ex.getMessage());
+			throw new CommonException(RC_DB_QUERY_ERROR, MessageFormat.format("Failed to reset Mapping Privilege for Role:{0}", role.getName()), ex);
 		}
 		
 		try {
@@ -331,8 +346,8 @@ public class AccessMenuServiceImpl extends DaoUtils implements AccessMenuService
 			
 			log.info("Success to save Mapping Privilege for Role:{}", role.getName());
 		} catch(Exception ex) {
-			log.error("Failed to save Mapping Privilege for Role:{}, cause:{}", role.getName(), ex.getMessage(), ex);
-			throw new Exception(MessageFormat.format("Failed to save Mapping Privilege for Role:{0}", role.getName()));
+			log.error("Failed to save Mapping Privilege for Role:{}, cause:{}", role.getName(), ex.getMessage());
+			throw new CommonException(RC_DB_QUERY_ERROR, MessageFormat.format("Failed to save Mapping Privilege for Role:{0}", role.getName()), ex);
 		}
 	}
 	
