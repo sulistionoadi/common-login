@@ -50,12 +50,24 @@ public class MasterUserServiceImpl extends DaoUtils implements MasterUserService
 	@Autowired
 	private MasterRoleService roleService;
 
+	private void validateRole(MasterUserDTO dto) throws CommonException {
+		if(dto.getRole()==null || dto.getRole().getId()==null) {
+			throw new CommonException(RC_INVALID_PARAMETER, "Parameter role.id is Required");
+		}
+		
+		Optional<MasterRoleDTO> role = roleService.findOne(dto.getRole().getId());
+		if(!role.isPresent()) {
+			throw new CommonException(RC_DATA_NOT_FOUND, "MasterRole with id:" + dto.getRole().getId() + " not found");
+		}
+	}
+	
 	@Override
 	public void save(MasterUserDTO dto) throws CommonException {
 		Optional<MasterUserDTO> exists = findByUsername(dto.getUsername());
 		if(exists.isPresent()) {
 			throw new CommonException(RC_DATA_ALREADY_EXIST, "Username already exists");
 		}
+		validateRole(dto);
 		
 		String sql = "INSERT INTO cm_sec_user ("
 				   + "    id, created_by, created_date, updated_by, updated_date,"
@@ -94,6 +106,7 @@ public class MasterUserServiceImpl extends DaoUtils implements MasterUserService
 				throw new CommonException(RC_DATA_ALREADY_EXIST, "Username already exists");
 		}
 		
+		validateRole(dto);
 		validateRecordBeforeUpdate(op.get());
 
 		if (!StringUtils.hasText(dto.getPassword())) {
