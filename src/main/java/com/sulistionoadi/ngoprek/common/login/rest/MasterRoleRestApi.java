@@ -6,12 +6,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -27,11 +24,9 @@ import com.sulistionoadi.ngoprek.common.builder.Select2ResponseBuilder;
 import com.sulistionoadi.ngoprek.common.dto.DefaultResponse;
 import com.sulistionoadi.ngoprek.common.dto.Select2Response;
 import com.sulistionoadi.ngoprek.common.dto.StatusActive;
-import com.sulistionoadi.ngoprek.common.dto.security.ChangePasswordDTO;
-import com.sulistionoadi.ngoprek.common.dto.security.MasterUserDTO;
-import com.sulistionoadi.ngoprek.common.dto.security.UserLogin;
+import com.sulistionoadi.ngoprek.common.dto.security.MasterRoleDTO;
 import com.sulistionoadi.ngoprek.common.exception.CommonException;
-import com.sulistionoadi.ngoprek.common.login.service.MasterUserService;
+import com.sulistionoadi.ngoprek.common.login.service.MasterRoleService;
 import com.sulistionoadi.ngoprek.common.pss.builder.DatatableResponseBuilder;
 import com.sulistionoadi.ngoprek.common.pss.constant.PssConstant;
 import com.sulistionoadi.ngoprek.common.pss.dto.DatatableResponse;
@@ -41,26 +36,24 @@ import com.sulistionoadi.ngoprek.common.pss.helper.PssHelper;
 import lombok.extern.slf4j.Slf4j;
 
 @RestController	
-@RequestMapping("/api/user")
+@RequestMapping("/api/role")
 @Slf4j
-public class MasterUserRestApi {
+public class MasterRoleRestApi {
 
-	private MasterUserService service;
-	private PasswordEncoder encoder;
+	private MasterRoleService service;
 	
 	@Autowired
-	public MasterUserRestApi(MasterUserService service, PasswordEncoder encoder) {
+	public MasterRoleRestApi(MasterRoleService service) {
 		this.service = service;
-		this.encoder = encoder;
 	}
 
 	@GetMapping("/draw")
-	@PreAuthorize("hasAuthority('API_LIST_USER')")
+	@PreAuthorize("hasAuthority('API_LIST_ROLE')")
 	public ResponseEntity<DatatableResponse> draw(PssFilter filter) throws Exception{
-		log.debug("draw master user, filter:[{}]", filter.toString());
+		log.debug("draw master role, filter:[{}]", filter.toString());
 		
 		Long recordTotal = service.count(filter, null);
-		List<MasterUserDTO> listData = service.filter(filter, null);
+		List<MasterRoleDTO> listData = service.filter(filter, null);
 		return ResponseEntity.ok(DatatableResponseBuilder.builder()
 				.setCode(RC_TRANSACTION_SUCCESS)
 				.setMessage("Success")
@@ -73,12 +66,12 @@ public class MasterUserRestApi {
 	}
 	
 	@GetMapping("/fetch")
-	@PreAuthorize("hasAuthority('API_LIST_USER')")
+	@PreAuthorize("hasAuthority('API_LIST_ROLE')")
 	public ResponseEntity<DatatableResponse> fetch(PssFilter filter) throws Exception{
-		log.debug("fetch master user, filter:[{}]", filter.toString());
+		log.debug("fetch master role, filter:[{}]", filter.toString());
 		
 		Long recordTotal = service.count(filter, null);
-		List<MasterUserDTO> listData = service.filterFetchEager(filter, null);
+		List<MasterRoleDTO> listData = service.filterFetchEager(filter, null);
 		return ResponseEntity.ok(DatatableResponseBuilder.builder()
 				.setCode(RC_TRANSACTION_SUCCESS)
 				.setMessage("Success")
@@ -91,13 +84,9 @@ public class MasterUserRestApi {
 	}
 	
 	@PostMapping("")
-	@PreAuthorize("hasAuthority('API_SAVE_USER')")
-	public ResponseEntity<DefaultResponse> save(@RequestBody MasterUserDTO dto) throws CommonException {
-		log.debug("save MasterUser {}", dto);
-		
-		if(StringUtils.isNoneBlank(dto.getPassword())) {
-			dto.setPassword(encoder.encode(dto.getPassword()));
-		}
+	@PreAuthorize("hasAuthority('API_SAVE_ROLE')")
+	public ResponseEntity<DefaultResponse> save(@RequestBody MasterRoleDTO dto) throws CommonException {
+		log.debug("save MasterRole {}", dto);
 		
 		dto.setIsActive(Boolean.TRUE);
 		if(dto.getId()==null) {
@@ -112,9 +101,9 @@ public class MasterUserRestApi {
 	}
 	
 	@DeleteMapping("/{id}")
-	@PreAuthorize("hasAuthority('API_DELETE_USER')")
+	@PreAuthorize("hasAuthority('API_DELETE_ROLE')")
 	public ResponseEntity<DefaultResponse> delete(@PathVariable Long id) throws CommonException {
-		log.debug("delete master user with id:[{}]", id);
+		log.debug("delete master role with id:[{}]", id);
 		
 		ResponseEntity<DefaultResponse> resp = ResponseEntity.ok(DefaultResponseBuilder.builder()
 				.setCode(RC_TRANSACTION_SUCCESS).setMessage("Success")
@@ -134,16 +123,16 @@ public class MasterUserRestApi {
 	}
 	
 	@GetMapping("/select2")
-	@PreAuthorize("hasAuthority('API_LIST_USER')")
+	@PreAuthorize("hasAuthority('API_LIST_ROLE')")
 	public ResponseEntity<Select2Response> select2 (
 			@RequestParam("q") String q, @RequestParam("page") Integer page) {
 		
 		PssFilter filter = PssHelper.buildSelect2Filter(q, page, 1, "asc");
-		log.debug("filter data user for select2, filter:[{}]", filter.toString());
+		log.debug("filter data role for select2, filter:[{}]", filter.toString());
 		
 		String errCode = RC_OTHER_ERROR;
 		String message = "Error";
-		List<MasterUserDTO> items = Collections.emptyList();
+		List<MasterRoleDTO> items = Collections.emptyList();
 		Long recordTotal = 0L;
 		Boolean incompleteResult = Boolean.TRUE;
 		
@@ -176,9 +165,9 @@ public class MasterUserRestApi {
 	}
 	
 	@GetMapping("/findOne/{id}")
-	@PreAuthorize("hasAuthority('API_LIST_USER')")
+	@PreAuthorize("hasAuthority('API_LIST_ROLE')")
 	public ResponseEntity<DefaultResponse> findOne(@PathVariable Long id) throws CommonException {
-		Optional<MasterUserDTO> op = service.findOne(id);
+		Optional<MasterRoleDTO> op = service.findOne(id);
 		
 		if(op.isPresent()) {
 			return ResponseEntity.ok(DefaultResponseBuilder.builder()
@@ -187,15 +176,15 @@ public class MasterUserRestApi {
 					.build());
 		} else {
 			return ResponseEntity.ok(DefaultResponseBuilder.builder()
-					.setCode(RC_DATA_NOT_FOUND).setMessage("MasterUser with id:"+id+" not found")
+					.setCode(RC_DATA_NOT_FOUND).setMessage("MasterRole with id:"+id+" not found")
 					.build());
 		}
 	}
 	
 	@GetMapping("/fetch/id/{id}")
-	@PreAuthorize("hasAuthority('API_LIST_USER')")
+	@PreAuthorize("hasAuthority('API_LIST_ROLE')")
 	public ResponseEntity<DefaultResponse> fetchById(@PathVariable Long id) throws CommonException {
-		Optional<MasterUserDTO> op = service.findOneFetchEager(id);
+		Optional<MasterRoleDTO> op = service.findOneFetchEager(id);
 		
 		if(op.isPresent()) {
 			return ResponseEntity.ok(DefaultResponseBuilder.builder()
@@ -204,15 +193,15 @@ public class MasterUserRestApi {
 					.build());
 		} else {
 			return ResponseEntity.ok(DefaultResponseBuilder.builder()
-					.setCode(RC_DATA_NOT_FOUND).setMessage("MasterUser with id:"+id+" not found")
+					.setCode(RC_DATA_NOT_FOUND).setMessage("MasterRole with id:"+id+" not found")
 					.build());
 		}
 	}
 	
-	@GetMapping("/findByUsername/{name}")
-	@PreAuthorize("hasAuthority('API_LIST_USER')")
-	public ResponseEntity<DefaultResponse> findByUsername(@PathVariable String name) throws CommonException {
-		Optional<MasterUserDTO> op = service.findByUsername(name);
+	@GetMapping("/findByRolename/{name}")
+	@PreAuthorize("hasAuthority('API_LIST_ROLE')")
+	public ResponseEntity<DefaultResponse> findByRolename(@PathVariable String name) throws CommonException {
+		Optional<MasterRoleDTO> op = service.findByRolename(name);
 		
 		if(op.isPresent()) {
 			return ResponseEntity.ok(DefaultResponseBuilder.builder()
@@ -221,15 +210,15 @@ public class MasterUserRestApi {
 					.build());
 		} else {
 			return ResponseEntity.ok(DefaultResponseBuilder.builder()
-					.setCode(RC_DATA_NOT_FOUND).setMessage("MasterUser with username:"+name+" not found")
+					.setCode(RC_DATA_NOT_FOUND).setMessage("MasterRole with rolename:"+name+" not found")
 					.build());
 		}
 	}
 	
-	@GetMapping("/fetch/username/{name}")
-	@PreAuthorize("hasAuthority('API_LIST_USER')")
-	public ResponseEntity<DefaultResponse> fetchByUsername(@PathVariable String name) throws CommonException {
-		Optional<MasterUserDTO> op = service.findByUsernameFetchEager(name);
+	@GetMapping("/fetch/rolename/{name}")
+	@PreAuthorize("hasAuthority('API_LIST_ROLE')")
+	public ResponseEntity<DefaultResponse> fetchByRolename(@PathVariable String name) throws CommonException {
+		Optional<MasterRoleDTO> op = service.findByRolenameFetchEager(name);
 		
 		if(op.isPresent()) {
 			return ResponseEntity.ok(DefaultResponseBuilder.builder()
@@ -238,13 +227,13 @@ public class MasterUserRestApi {
 					.build());
 		} else {
 			return ResponseEntity.ok(DefaultResponseBuilder.builder()
-					.setCode(RC_DATA_NOT_FOUND).setMessage("MasterUser with username:"+name+" not found")
+					.setCode(RC_DATA_NOT_FOUND).setMessage("MasterRole with rolename:"+name+" not found")
 					.build());
 		}
 	}
 	
 	@PutMapping("/setStatus/{id}")
-	@PreAuthorize("hasAuthority('API_SAVE_USER')")
+	@PreAuthorize("hasAuthority('API_SAVE_ROLE')")
 	public ResponseEntity<DefaultResponse> setStatus(@PathVariable Long id, 
 			@RequestParam(name="is_active", required=false) Boolean isActive) throws CommonException {
 		
@@ -254,34 +243,6 @@ public class MasterUserRestApi {
 		return ResponseEntity.ok(DefaultResponseBuilder.builder()
 				.setCode(RC_TRANSACTION_SUCCESS).setMessage("Success")
 				.build());
-	}
-	
-	@PreAuthorize("hasAuthority('MNU_CHANGE_PASSWORD')")
-	@PostMapping("/changepass")
-	public ResponseEntity<DefaultResponse> changePassword(ChangePasswordDTO passDto) throws Exception {
-		UserLogin session = (UserLogin) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-		if(session == null) {
-			throw new CommonException(RC_INVALID_SESSION, "Invalid session, please sign in first");
-		}
-		
-		log.debug("User [{}] make a password change", session.getUsername());
-		
-		Optional<MasterUserDTO> userOp = service.findByUsername(session.getUsername());
-		if(!userOp.isPresent()) {
-			throw new CommonException(RC_DATA_NOT_FOUND, "Username not registered");
-		}
-		
-		MasterUserDTO userDto = userOp.get();
-		if(!encoder.matches(passDto.getOldPassword(), userDto.getPassword())) {
-			throw new CommonException(RC_INVALID_PARAMETER, "Invalid current password");
-		} else if(!passDto.getNewPassword().equals(passDto.getConfirmPassword())){
-			throw new CommonException(RC_INVALID_PARAMETER, "New password didn't match");
-		} else {
-			userDto.setPassword(encoder.encode(passDto.getNewPassword()));
-		}
-		
-		service.update(userDto);
-		return ResponseEntity.ok(DefaultResponseBuilder.builder().setCode("00").setMessage("Update password success").build());
 	}
 	
 }

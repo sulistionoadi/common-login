@@ -16,11 +16,12 @@ public interface AccessMenuService {
 	public void save(AccessMenuDTO dto) throws CommonException;
 	public void update(AccessMenuDTO dto) throws CommonException;
 	public Optional<AccessMenuDTO> findOne(Long id) throws CommonException;
+	public Optional<AccessMenuDTO> findByCode(String code) throws CommonException;
 	public Long count(PssFilter filter, StatusActive statusActive) throws CommonException;
 	public List<AccessMenuDTO> filter(PssFilter filter, StatusActive statusActive) throws CommonException;
 	public void delete(Long id) throws CommonException;
 	public void setAsDelete(Long id, String updatedBy) throws CommonException;
-	public void setActive(Long id, Boolean bool, String updatedBy) throws CommonException;
+	public void setActive(Long id, StatusActive statusActive, String updatedBy) throws CommonException;
 	public Set<AccessMenuDTO> getPermittedAccess(Long roleid) throws CommonException;
 	public void saveMappingPrivilege(MasterRoleDTO role, Set<MappingPrivilege> privileges) throws CommonException;
 	

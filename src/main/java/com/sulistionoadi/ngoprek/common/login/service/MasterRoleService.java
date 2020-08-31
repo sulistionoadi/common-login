@@ -22,6 +22,6 @@ public interface MasterRoleService {
 	public List<MasterRoleDTO> getForSelection() throws CommonException;
 	public void delete(Long id) throws CommonException;
 	public void setAsDelete(Long id, String updatedBy) throws CommonException;
-	public void setActive(Long id, Boolean bool, String updatedBy) throws CommonException;
+	public void setActive(Long id, StatusActive statusActive, String updatedBy) throws CommonException;
 	
 }
