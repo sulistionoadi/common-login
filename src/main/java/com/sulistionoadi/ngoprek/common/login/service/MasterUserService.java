@@ -21,6 +21,6 @@ public interface MasterUserService {
 	public List<MasterUserDTO> filterFetchEager(PssFilter filter, StatusActive statusActive) throws CommonException;
 	public void delete(Long id) throws CommonException;
 	public void setAsDelete(Long id, String updatedBy) throws CommonException;
-	public void setActive(Long id, Boolean bool, String updatedBy) throws CommonException;
+	public void setActive(Long id, StatusActive statusActive, String updatedBy) throws CommonException;
 	
 }

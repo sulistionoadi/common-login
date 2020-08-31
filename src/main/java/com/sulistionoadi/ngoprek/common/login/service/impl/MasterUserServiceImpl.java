@@ -35,7 +35,6 @@ import com.sulistionoadi.ngoprek.common.utils.DaoUtils;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-@Transactional(rollbackFor = Exception.class)
 @Service("masterUserService")
 public class MasterUserServiceImpl extends DaoUtils implements MasterUserService, Serializable {
 
@@ -62,6 +61,7 @@ public class MasterUserServiceImpl extends DaoUtils implements MasterUserService
 	}
 	
 	@Override
+	@Transactional(rollbackFor = Exception.class)
 	public void save(MasterUserDTO dto) throws CommonException {
 		Optional<MasterUserDTO> exists = findByUsername(dto.getUsername());
 		if(exists.isPresent()) {
@@ -94,6 +94,7 @@ public class MasterUserServiceImpl extends DaoUtils implements MasterUserService
 	}
 
 	@Override
+	@Transactional(rollbackFor = Exception.class)
 	public void update(MasterUserDTO dto) throws CommonException {
 		Optional<MasterUserDTO> op = findOne(dto.getId());
 		if (!op.isPresent()) {
@@ -277,6 +278,7 @@ public class MasterUserServiceImpl extends DaoUtils implements MasterUserService
 	}
 	
 	@Override
+	@Transactional(rollbackFor = Exception.class)
 	public void delete(Long id) throws CommonException {
 		Optional<MasterUserDTO> op = this.findOne(id);
 		if (!op.isPresent()) {
@@ -295,6 +297,7 @@ public class MasterUserServiceImpl extends DaoUtils implements MasterUserService
 	}
 	
 	@Override
+	@Transactional(rollbackFor = Exception.class)
 	public void setAsDelete(Long id, String updatedBy) throws CommonException {
 		Optional<MasterUserDTO> op = this.findOne(id);
 		if (!op.isPresent()) {
@@ -321,7 +324,8 @@ public class MasterUserServiceImpl extends DaoUtils implements MasterUserService
 	}
 
 	@Override
-	public void setActive(Long id, Boolean bool, String updatedBy) throws CommonException {
+	@Transactional(rollbackFor = Exception.class)
+	public void setActive(Long id, StatusActive statusActive, String updatedBy) throws CommonException {
 		Optional<MasterUserDTO> op = this.findOne(id);
 		if (!op.isPresent()) {
 			throw new CommonException(RC_DATA_NOT_FOUND, "MasterUser with id:" + id + " not found");
@@ -330,12 +334,13 @@ public class MasterUserServiceImpl extends DaoUtils implements MasterUserService
 		validateRecordBeforeUpdate(op.get());
 		String q = "UPDATE cm_sec_user SET is_active=?, updated_by=?, updated_date=? WHERE id=? AND appname=?";
 		try {
-			Integer boolVal = bool ? 1:0;
+			Integer boolVal = statusActive!=null && statusActive.equals(StatusActive.YES) ? 1:0;
 			getJdbcTemplate(datasource).update(q, boolVal, updatedBy, new Date(), id, this.appname);
-			log.info("Flag active status for MasterUser with id:{} successfully", id);
+			log.info("Flag isActive={} for MasterUser with id:{} successfully", statusActive, id);
 		} catch (Exception ex) {
-			log.error("Cannot update flag active for MasterUser with id:{}, cause:{}", id, ex.getMessage());
-			throw new CommonException(RC_DB_QUERY_ERROR, "Cannot update flag active for MasterUser with id:" + id, ex);
+			log.error("Cannot update isActive={} for MasterUser with id:{}, cause:{}", statusActive, id, ex.getMessage());
+			throw new CommonException(RC_DB_QUERY_ERROR, MessageFormat
+					.format("Cannot update flag isActive={0} for MasterUser with id:{1}", statusActive, id.toString()), ex);
 		}
 	}
 

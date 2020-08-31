@@ -9,9 +9,11 @@ import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import javax.sql.DataSource;
 
@@ -19,11 +21,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import com.sulistionoadi.ngoprek.common.dto.StatusActive;
+import com.sulistionoadi.ngoprek.common.dto.security.AccessMenuDTO;
+import com.sulistionoadi.ngoprek.common.dto.security.MappingPrivilege;
 import com.sulistionoadi.ngoprek.common.dto.security.MasterRoleDTO;
 import com.sulistionoadi.ngoprek.common.exception.CommonException;
 import com.sulistionoadi.ngoprek.common.login.rowmapper.MasterRoleRowMapper;
@@ -36,7 +43,6 @@ import com.sulistionoadi.ngoprek.common.utils.DaoUtils;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-@Transactional(rollbackFor = Exception.class)
 @Service("masterRoleService")
 public class MasterRoleServiceImpl extends DaoUtils implements MasterRoleService, Serializable {
 
@@ -50,27 +56,47 @@ public class MasterRoleServiceImpl extends DaoUtils implements MasterRoleService
 	
 	@Autowired
 	private AccessMenuService accessMenuService;
+	
+	private void saveAccessMenu(MasterRoleDTO dto) throws CommonException {
+		if(dto.getPermittedMenu()==null || dto.getPermittedMenu().isEmpty()) return;
+		
+		Set<MappingPrivilege> privileges = new HashSet<>();
+		for (AccessMenuDTO menu : dto.getPermittedMenu()) {
+			log.debug("Add MappingPrivilege with role_id:{} and menu_id:{}", dto.getId(), menu.getId());
+			privileges.add(MappingPrivilege.builder()
+					.role(dto).menu(menu)
+					.actCsv(menu.getActCsv()?1:0).actExcel(menu.getActExcel()?1:0).actFilter(menu.getActFilter()?1:0)
+					.actPdf(menu.getActPdf()?1:0).actRemove(menu.getActRemove()?1:0).actSave(menu.getActSave()?1:0)
+					.build());
+		}
+		log.debug("Save MappingPrivilege for role_id:{} with size:{}", dto.getId(), privileges.size());
+		accessMenuService.saveMappingPrivilege(dto, privileges);
+	}
 
 	@Override
+	@Transactional(rollbackFor = Exception.class)
 	public void save(MasterRoleDTO dto) throws CommonException {
 		Optional<MasterRoleDTO> exists = findByRolename(dto.getName());
 		if(exists.isPresent()) {
 			throw new CommonException(RC_DATA_ALREADY_EXIST, "Rolename already exists");
 		}
 		
-		String sql = "INSERT INTO cm_sec_role ("
-				   + "    id, created_by, created_date, updated_by, updated_date,"
-				   + "    is_active, appname, rolename "
-				   + ") VALUES ("
-				   + "    :id, :createdBy, :createdDate, :updatedBy, :updatedDate, "
-				   + "    :isActive, :appname, :name"
-				   + ")";
+		String sql = "INSERT INTO cm_sec_role (created_by, created_date, updated_by, updated_date, is_active, appname, rolename) "
+				   + "VALUES (:createdBy, :createdDate, :updatedBy, :updatedDate, :isActive, :appname, :name)";
 
 		try {
+			NamedParameterJdbcTemplate jdbcTemplate = getNamedParameterJdbcTemplate(this.datasource);
+			KeyHolder keyHolder = new GeneratedKeyHolder();
 			CombinedSqlParameterSource params = new CombinedSqlParameterSource(dto);
 			params.addValue("appname", this.appname);
+			jdbcTemplate.update(sql, params, keyHolder, new String[]{"id"});
 			
-			getNamedParameterJdbcTemplate(this.datasource).update(sql, params);
+			Number newId = keyHolder.getKey();
+			if(newId == null) throw new CommonException(RC_DB_QUERY_ERROR, "Cannot get generated-id from database");
+			
+			log.info("Role {} saved with id:{}", dto.getName(), newId);
+			dto.setId(newId.longValue());
+			saveAccessMenu(dto);
 			log.info("Save MasterRole successfully");
 		} catch (Exception ex) {
 			log.error("Cannot save MasterRole, cause:{}", ex.getMessage());
@@ -82,6 +108,7 @@ public class MasterRoleServiceImpl extends DaoUtils implements MasterRoleService
 	}
 
 	@Override
+	@Transactional(rollbackFor = Exception.class)
 	public void update(MasterRoleDTO dto) throws CommonException {
 		Optional<MasterRoleDTO> op = findOne(dto.getId());
 		if (!op.isPresent()) {
@@ -96,16 +123,15 @@ public class MasterRoleServiceImpl extends DaoUtils implements MasterRoleService
 		
 		validateRecordBeforeUpdate(op.get());
 		String sql = "UPDATE cm_sec_role SET "
-				   + "    updated_by=:updatedBy, updated_date=:updatedDate, "
-				   + "    is_active=:isActive, rolename=:name "
-				   + "WHERE id=:id "
-				   + "  AND appname=:appname";
+				   + "    updated_by=:updatedBy, updated_date=:updatedDate, is_active=:isActive, rolename=:name "
+				   + "WHERE id=:id AND appname=:appname";
 
 		try {
 			CombinedSqlParameterSource params = new CombinedSqlParameterSource(dto);
 			params.addValue("appname", this.appname);
 			
 			getNamedParameterJdbcTemplate(this.datasource).update(sql, params);
+			saveAccessMenu(dto);
 			log.info("Update MasterRole with id:{} successfully", dto.getId());
 		} catch (Exception ex) {
 			log.error("Cannot update MasterRole, cause:{}", ex.getMessage());
@@ -121,8 +147,7 @@ public class MasterRoleServiceImpl extends DaoUtils implements MasterRoleService
 		String sql = "SELECT m.* FROM cm_sec_role m WHERE m.id=? AND m.appname=? AND m.is_deleted=0";
 		try {
 			log.debug("Get MasterRole with id:{}", id);
-			MasterRoleDTO dto = getJdbcTemplate(datasource).queryForObject(sql, 
-					new Object[] { id, this.appname }, new MasterRoleRowMapper());
+			MasterRoleDTO dto = getJdbcTemplate(datasource).queryForObject(sql, new Object[] { id, this.appname }, new MasterRoleRowMapper());
 			return Optional.of(dto);
 		} catch (EmptyResultDataAccessException ex) {
 			log.warn("MasterRole with id:{} not found", id);
@@ -228,8 +253,7 @@ public class MasterRoleServiceImpl extends DaoUtils implements MasterRoleService
 		log.info("Get list data MasterRole filter by {}", param);
 
 		try {
-			List<MasterRoleDTO> datas = getNamedParameterJdbcTemplate(datasource).query(sql, param,
-					new MasterRoleRowMapper());
+			List<MasterRoleDTO> datas = getNamedParameterJdbcTemplate(datasource).query(sql, param, new MasterRoleRowMapper());
 			return datas;
 		} catch (Exception ex) {
 			log.error("Cannot get list data MasterRole, cause:{}", ex.getMessage());
@@ -264,6 +288,7 @@ public class MasterRoleServiceImpl extends DaoUtils implements MasterRoleService
 	}
 	
 	@Override
+	@Transactional(rollbackFor = Exception.class)
 	public void delete(Long id) throws CommonException {
 		Optional<MasterRoleDTO> op = this.findOne(id);
 		if (!op.isPresent()) {
@@ -271,8 +296,8 @@ public class MasterRoleServiceImpl extends DaoUtils implements MasterRoleService
 		}
 
 		validateRecordBeforeUpdate(op.get());
-		String q = "DELETE FROM cm_sec_role WHERE id=? AND appname=?";
 		try {
+			String q = "DELETE FROM cm_sec_role WHERE id=? AND appname=?";
 			getJdbcTemplate(datasource).update(q, id, this.appname);
 			log.info("Delete MasterRole with id:{} successfully", id);
 		} catch (Exception ex) {
@@ -282,6 +307,7 @@ public class MasterRoleServiceImpl extends DaoUtils implements MasterRoleService
 	}
 	
 	@Override
+	@Transactional(rollbackFor = Exception.class)
 	public void setAsDelete(Long id, String updatedBy) throws CommonException {
 		Optional<MasterRoleDTO> op = this.findOne(id);
 		if (!op.isPresent()) {
@@ -292,10 +318,7 @@ public class MasterRoleServiceImpl extends DaoUtils implements MasterRoleService
 		validateRecordBeforeUpdate(op.get());
 
 		try {
-			String q = "UPDATE cm_sec_role SET "
-					 + "       is_deleted=1, "
-					 + "       rolename=CONCAT(rolename, CONCAT('-', id)), "
-					 + "       updated_by=?, updated_date=? "
+			String q = "UPDATE cm_sec_role SET is_deleted=1, rolename=CONCAT(rolename, CONCAT('-', id)), updated_by=?, updated_date=? "
 					 + "WHERE id=? AND appname=?";
 			
 			log.warn("MasterRole with id:{} will be flag as isDeleted", id);
@@ -308,7 +331,8 @@ public class MasterRoleServiceImpl extends DaoUtils implements MasterRoleService
 	}
 
 	@Override
-	public void setActive(Long id, Boolean bool, String updatedBy) throws CommonException {
+	@Transactional(rollbackFor = Exception.class)
+	public void setActive(Long id, StatusActive statusActive, String updatedBy) throws CommonException {
 		Optional<MasterRoleDTO> op = this.findOne(id);
 		if (!op.isPresent()) {
 			throw new CommonException(RC_DATA_NOT_FOUND, "MasterRole with id:" + id + " not found");
@@ -317,12 +341,13 @@ public class MasterRoleServiceImpl extends DaoUtils implements MasterRoleService
 		validateRecordBeforeUpdate(op.get());
 		String q = "UPDATE cm_sec_role SET is_active=?, updated_by=?, updated_date=? WHERE id=? AND appname=?";
 		try {
-			Integer boolVal = bool ? 1:0;
+			Integer boolVal = statusActive!=null && statusActive.equals(StatusActive.YES) ? 1:0;
 			getJdbcTemplate(datasource).update(q, boolVal, updatedBy, new Date(), id, this.appname);
-			log.info("Flag active status for MasterRole with id:{} successfully", id);
+			log.info("Flag isActive={} for MasterRole with id:{} successfully", statusActive, id);
 		} catch (Exception ex) {
-			log.error("Cannot update flag active for MasterRole with id:{}, cause:{}", id, ex.getMessage());
-			throw new CommonException(RC_DB_QUERY_ERROR, "Cannot update flag active for MasterRole with id:" + id, ex);
+			log.error("Cannot update isActive={} for MasterRole with id:{}, cause:{}", statusActive, id, ex.getMessage());
+			throw new CommonException(RC_DB_QUERY_ERROR, MessageFormat
+					.format("Cannot update flag isActive={0} for MasterRole with id:{1}", statusActive, id.toString()), ex);
 		}
 	}
 

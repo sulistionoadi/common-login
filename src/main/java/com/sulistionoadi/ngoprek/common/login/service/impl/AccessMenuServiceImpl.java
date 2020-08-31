@@ -57,11 +57,16 @@ public class AccessMenuServiceImpl extends DaoUtils implements AccessMenuService
 
 	@Override
 	public void save(AccessMenuDTO dto) throws CommonException {
+		Optional<AccessMenuDTO> exists = findByCode(dto.getMenuCode());
+		if(exists.isPresent()) {
+			throw new CommonException(RC_DATA_ALREADY_EXIST, "Menu already exists");
+		}
+		
 		String sql = "INSERT INTO cm_sec_menu ("
-				   + "    id, created_by, created_date, updated_by, updated_date, is_active, appname, "
+				   + "    created_by, created_date, updated_by, updated_date, is_active, appname, "
 				   + "    menucode, menuname, priority, parentid"
 				   + ") VALUES ("
-				   + "    :id, :createdBy, :createdDate, :updatedBy, :updatedDate, :isActive, :appname, "
+				   + "    :createdBy, :createdDate, :updatedBy, :updatedDate, :isActive, :appname, "
 				   + "    :menuCode, :menuName, :priority, :parentid"
 				   + ")";
 
@@ -87,14 +92,17 @@ public class AccessMenuServiceImpl extends DaoUtils implements AccessMenuService
 			throw new CommonException(RC_DATA_NOT_FOUND, "AccessMenu with id:" + dto.getId() + " not found");
 		}
 		
+		Optional<AccessMenuDTO> exists = findByCode(dto.getMenuCode());
+		if(exists.isPresent()) {
+			if(!exists.get().getId().equals(dto.getId()))
+				throw new CommonException(RC_DATA_ALREADY_EXIST, "Menu already exists");
+		}
+		
 		validateRecordBeforeUpdate(op.get());
 		String sql = "UPDATE cm_sec_menu SET "
 				   + "    updated_by=:updatedBy, updated_date=:updatedDate, is_active=:isActive, "
-				   + "    menucode=:menuCode, menuname=:menuName, "
-				   + "    priority=:priority, parentid=:parentid "
-				   + "WHERE id=:id "
-				   + "  AND appname=:appname";
-
+				   + "    menucode=:menuCode, menuname=:menuName, priority=:priority, parentid=:parentid "
+				   + "WHERE id=:id AND appname=:appname";
 		try {
 			CombinedSqlParameterSource params = new CombinedSqlParameterSource(dto);
 			params.addValue("appname", this.appname);
@@ -115,8 +123,7 @@ public class AccessMenuServiceImpl extends DaoUtils implements AccessMenuService
 		String sql = "SELECT m.* FROM cm_sec_menu m WHERE m.id=? AND m.appname=? AND m.is_deleted=0";
 		try {
 			log.debug("Get AccessMenu with id:{}", id);
-			AccessMenuDTO dto = getJdbcTemplate(datasource).queryForObject(sql, 
-					new Object[] { id, this.appname }, new AccessMenuRowMapper());
+			AccessMenuDTO dto = getJdbcTemplate(datasource).queryForObject(sql, new Object[] { id, this.appname }, new AccessMenuRowMapper());
 			return Optional.of(dto);
 		} catch (EmptyResultDataAccessException ex) {
 			log.warn("AccessMenu with id:{} not found", id);
@@ -125,6 +132,22 @@ public class AccessMenuServiceImpl extends DaoUtils implements AccessMenuService
 			log.error("Cannot get AccessMenu with id:{}, cause:{}", id, ex.getMessage());
 			throw new CommonException(RC_DB_QUERY_ERROR, MessageFormat.format("Cannot get AccessMenu with id:{0}", 
 					id != null ? id.toString() : "null"), ex);
+		}
+	}
+	
+	@Override
+	public Optional<AccessMenuDTO> findByCode(String code) throws CommonException {
+		String sql = "SELECT m.* FROM cm_sec_menu m WHERE m.menucode=? AND m.appname=? AND m.is_deleted=0";
+		try {
+			log.debug("Get AccessMenu with code:{}", code);
+			AccessMenuDTO dto = getJdbcTemplate(datasource).queryForObject(sql, new Object[] { code, this.appname }, new AccessMenuRowMapper());
+			return Optional.of(dto);
+		} catch (EmptyResultDataAccessException ex) {
+			log.warn("AccessMenu with code:{} not found", code);
+			return Optional.empty();
+		} catch (Exception ex) {
+			log.error("Cannot get AccessMenu with code:{}, cause:{}", code, ex.getMessage());
+			throw new CommonException(RC_DB_QUERY_ERROR, MessageFormat.format("Cannot get AccessMenu with code:{0}", code), ex);
 		}
 	}
 
@@ -227,19 +250,13 @@ public class AccessMenuServiceImpl extends DaoUtils implements AccessMenuService
 			throw new CommonException(RC_DATA_NOT_FOUND, "AccessMenu with id:" + id + " not found");
 		}
 
-		JdbcTemplate jdbcTemplate = getJdbcTemplate(datasource);
 		validateRecordBeforeUpdate(op.get());
-
 		try {
-			
-			String q = "UPDATE cm_sec_menu SET "
-					 + "       is_deleted=1, "
-					 + "       menucode=CONCAT(menucode, CONCAT('-', id)), "
-					 + "       updated_by=?, updated_date=? "
+			String q = "UPDATE cm_sec_menu SET is_deleted=1, menucode=CONCAT(menucode, CONCAT('-', id)), updated_by=?, updated_date=? "
 					 + "WHERE id=? AND appname=?";
 			
 			log.warn("AccessMenu with id:{} will be flag as isDeleted", id);
-			jdbcTemplate.update(q, updatedBy, new Date(), id, this.appname);
+			getJdbcTemplate(datasource).update(q, updatedBy, new Date(), id, this.appname);
 			log.info("Flag isDeleted for AccessMenu with id:{} successfully", id);
 		} catch(Exception ex) {
 			log.error("Cannot flag isDeleted for AccessMenu with id:{}, cause:{}", id, ex.getMessage());
@@ -248,7 +265,7 @@ public class AccessMenuServiceImpl extends DaoUtils implements AccessMenuService
 	}
 
 	@Override
-	public void setActive(Long id, Boolean bool, String updatedBy) throws CommonException {
+	public void setActive(Long id, StatusActive statusActive, String updatedBy) throws CommonException {
 		Optional<AccessMenuDTO> op = this.findOne(id);
 		if (!op.isPresent()) {
 			throw new CommonException(RC_DATA_NOT_FOUND, "AccessMenu with id:" + id + " not found");
@@ -257,12 +274,13 @@ public class AccessMenuServiceImpl extends DaoUtils implements AccessMenuService
 		validateRecordBeforeUpdate(op.get());
 		String q = "UPDATE cm_sec_menu SET is_active=?, updated_by=?, updated_date=? WHERE id=? AND appname=?";
 		try {
-			Integer boolVal = bool ? 1:0;
+			Integer boolVal = statusActive!=null && statusActive.equals(StatusActive.YES) ? 1:0;
 			getJdbcTemplate(datasource).update(q, boolVal, updatedBy, new Date(), id, this.appname);
-			log.info("Flag active status for AccessMenu with id:{} successfully", id);
+			log.info("Flag isActive={} for AccessMenu with id:{} successfully", statusActive, id);
 		} catch (Exception ex) {
-			log.error("Cannot update flag active for AccessMenu with id:{}, cause:{}", id, ex.getMessage());
-			throw new CommonException(RC_DB_QUERY_ERROR, "Cannot update flag active for AccessMenu with id:" + id, ex);
+			log.error("Cannot update isActive={} for AccessMenu with id:{}, cause:{}", statusActive, id, ex.getMessage());
+			throw new CommonException(RC_DB_QUERY_ERROR, MessageFormat
+					.format("Cannot update flag isActive={0} for AccessMenu with id:{1}", statusActive, id.toString()), ex);
 		}
 	}
 	
@@ -325,7 +343,7 @@ public class AccessMenuServiceImpl extends DaoUtils implements AccessMenuService
 		}
 		
 		try {
-			log.info("Trying to save Mapping Privilege for Role:{}", role.getName());
+			log.info("Trying to save Mapping Privilege for Role:{} batch_size:{}", role.getName(), privileges.size());
 			String q= "INSERT INTO cm_sec_role_menu ( "
 					+ "    roleid, menuid, act_filter, act_csv, act_excel, act_pdf, act_save, act_remove "
 					+ ") values (?, ?, ?, ?, ?, ?, ?, ?) ";
