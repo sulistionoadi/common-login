@@ -36,7 +36,8 @@ public class CustomAuthenticationExceptionHandler implements AuthenticationEntry
 
     @Override
     public void commence(HttpServletRequest req, HttpServletResponse res, AuthenticationException ae) throws IOException, ServletException {
-        log.error("Authentication Error, cause:{}", ae.getMessage(), ae);
+    	log.debug("Authentication Error, cause:{}", ae.getMessage(), ae);
+    	log.error("Authentication Error, cause:{}", ae.getMessage());
         
         if(req.getRequestURI().startsWith("/api")) {
         	HttpStatus status = HttpStatus.UNAUTHORIZED;
@@ -53,7 +54,8 @@ public class CustomAuthenticationExceptionHandler implements AuthenticationEntry
         		writer.flush();
         		writer.close();
         	} catch(Exception ex) {
-        		log.error(ex.getMessage(), ex);
+        		log.debug(ex.getMessage(), ex);
+        		log.error(ex.getMessage());
         	}
         } else {
         	HttpSession session = req.getSession();
