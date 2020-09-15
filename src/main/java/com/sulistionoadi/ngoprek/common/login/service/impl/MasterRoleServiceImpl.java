@@ -229,7 +229,7 @@ public class MasterRoleServiceImpl extends DaoUtils implements MasterRoleService
 		Map<String, Object> param = generatePssParameter(filter);
 		param.put("appname", this.appname);
 
-		String[] orderableColums = new String[]{"id", "rolename"};
+		String[] orderableColums = new String[]{"rolename"};
 		String sql = "SELECT * FROM ( " 
 				   + "    SELECT DT.*, " 
 				   + "           row_number() over ( "

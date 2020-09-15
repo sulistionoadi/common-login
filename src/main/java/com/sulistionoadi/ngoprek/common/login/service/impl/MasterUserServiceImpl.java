@@ -228,7 +228,7 @@ public class MasterUserServiceImpl extends DaoUtils implements MasterUserService
 
 	@Override
 	public List<MasterUserDTO> filter(PssFilter filter, StatusActive statusActive) throws CommonException {
-		String[] orderableColums = new String[]{"id", "username", "rolename"};
+		String[] orderableColums = new String[]{"username", "rolename"};
 		Map<String, Object> param = generatePssParameter(filter);
 		param.put("appname", this.appname);
 
