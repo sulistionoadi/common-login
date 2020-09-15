@@ -59,7 +59,7 @@ public class MasterRoleRestApi {
 				.setMessage("Success")
 				.setDraw(filter.getDraw())
 				.setData(listData)
-				.setRecordsFiltered(Long.valueOf(listData.size()))
+				.setRecordsFiltered(recordTotal)
 				.setRecordsTotal(recordTotal)
 				.setSearch(filter.getSearch().get(PssConstant.PSS_SEARCH_VAL))
 				.build());
@@ -77,7 +77,7 @@ public class MasterRoleRestApi {
 				.setMessage("Success")
 				.setDraw(filter.getDraw())
 				.setData(listData)
-				.setRecordsFiltered(Long.valueOf(listData.size()))
+				.setRecordsFiltered(recordTotal)
 				.setRecordsTotal(recordTotal)
 				.setSearch(filter.getSearch().get(PssConstant.PSS_SEARCH_VAL))
 				.build());
