@@ -127,7 +127,7 @@ public class MasterRoleRestApi {
 	public ResponseEntity<Select2Response> select2 (
 			@RequestParam("q") String q, @RequestParam("page") Integer page) {
 		
-		PssFilter filter = PssHelper.buildSelect2Filter(q, page, 1, "asc");
+		PssFilter filter = PssHelper.buildSelect2Filter(q, page, 0, "asc");
 		log.debug("filter data role for select2, filter:[{}]", filter.toString());
 		
 		String errCode = RC_OTHER_ERROR;
