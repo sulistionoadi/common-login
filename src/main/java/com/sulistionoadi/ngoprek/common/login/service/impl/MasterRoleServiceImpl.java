@@ -280,7 +280,7 @@ public class MasterRoleServiceImpl extends DaoUtils implements MasterRoleService
 		pss.setLength(countAll.intValue());
 		
 		HashMap<String, String> orderBy = new HashMap<>();
-		orderBy.put(PSS_ORDER_COLUMN, "1");
+		orderBy.put(PSS_ORDER_COLUMN, "0");
 		orderBy.put(PSS_ORDER_DIRECTION, "asc");
 		pss.getOrder().add(orderBy);
 		
