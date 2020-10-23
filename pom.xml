@@ -7,7 +7,7 @@
 
 	<groupId>com.sulistionoadi.ngoprek</groupId>
 	<artifactId>common-login</artifactId>
-	<version>1.1.1</version>
+	<version>1.2.0-SNAPSHOT</version>
 	<packaging>jar</packaging>
 
 	<name>Common Login and User Management</name>
@@ -16,16 +16,39 @@
 	<properties>
 		<java.version>1.8</java.version>
 		<maven.compiler.target>1.8</maven.compiler.target>
-        <maven.compiler.source>1.8</maven.compiler.source>
+		<maven.compiler.source>1.8</maven.compiler.source>
+		<encoding>UTF-8</encoding>
+		<project.build.sourceEncoding>${encoding}</project.build.sourceEncoding>
+		<project.reporting.outputEncoding>${encoding}</project.reporting.outputEncoding>
+		<project.resources.sourceEncoding>${encoding}</project.resources.sourceEncoding>
+		<archetype.encoding>${encoding}</archetype.encoding>
 		
 		<com.fasterxml.jackson.version>2.11.2</com.fasterxml.jackson.version>
-		<common-dao-jdbc.version>1.0.1</common-dao-jdbc.version>
+		<common-dao-jdbc.version>1.1.0</common-dao-jdbc.version>
 		<javax-servlet.version>4.0.1</javax-servlet.version>
-		<lombok.version>1.18.12</lombok.version>
+		<lombok.version>1.18.16</lombok.version>
 		<slf4j.version>1.7.30</slf4j.version>
-		<org.springframework.version>5.2.2.RELEASE</org.springframework.version>
-		<org.springframework.security.version>5.2.1.RELEASE</org.springframework.security.version>
+		<org.springframework.version>5.2.9.RELEASE</org.springframework.version>
+		<org.springframework.security.version>5.3.5.RELEASE</org.springframework.security.version>
 	</properties>
+	
+	<scm>
+		<developerConnection>scm:git:git@github.com:sulistionoadi/common-login.git</developerConnection>
+		<connection>scm:git:git@github.com:sulistionoadi/common-login.git</connection>
+		<url>https://github.com/sulistionoadi/common-login</url>
+		<tag>@{project.version}</tag>
+	</scm>
+	
+	<distributionManagement>
+		<repository>
+			<id>comsuRepo</id>
+			<url>${comsu.repo.url}</url>
+		</repository>
+		<snapshotRepository>
+			<id>comsuRepo</id>
+			<url>${comsu.repo.url}</url>
+		</snapshotRepository>
+	</distributionManagement>
 
 	<dependencies>
 		<dependency>
@@ -64,5 +87,23 @@
 			<version>${com.fasterxml.jackson.version}</version> 
 		</dependency> 
 	</dependencies>
+	
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-release-plugin</artifactId>
+				<version>3.0.0-M1</version>
+				<configuration>
+					<goals>pre-integration-test</goals>
+					<preparationGoals>package</preparationGoals>
+					<allowTimestampedSnapshots>true</allowTimestampedSnapshots>
+					<tagNameFormat>@{project.version}</tagNameFormat>
+					<remoteTagging>false</remoteTagging>
+					<branchName>master</branchName>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
 
 </project>
