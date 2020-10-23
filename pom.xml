@@ -1,13 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 
 	<modelVersion>4.0.0</modelVersion>
 
 	<groupId>com.sulistionoadi.ngoprek</groupId>
 	<artifactId>common-login</artifactId>
-	<version>1.2.0-SNAPSHOT</version>
+	<version>1.2.0</version>
 	<packaging>jar</packaging>
 
 	<name>Common Login and User Management</name>
@@ -36,7 +34,7 @@
 		<developerConnection>scm:git:git@github.com:sulistionoadi/common-login.git</developerConnection>
 		<connection>scm:git:git@github.com:sulistionoadi/common-login.git</connection>
 		<url>https://github.com/sulistionoadi/common-login</url>
-		<tag>@{project.version}</tag>
+		<tag>1.2.0</tag>
 	</scm>
 	
 	<distributionManagement>
