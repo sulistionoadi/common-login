@@ -21,7 +21,7 @@
 		<project.resources.sourceEncoding>${encoding}</project.resources.sourceEncoding>
 		<archetype.encoding>${encoding}</archetype.encoding>
 		
-		<com.fasterxml.jackson.version>2.11.2</com.fasterxml.jackson.version>
+		<com.fasterxml.jackson.version>2.12.7.1</com.fasterxml.jackson.version>
 		<common-dao-jdbc.version>1.1.0</common-dao-jdbc.version>
 		<javax-servlet.version>4.0.1</javax-servlet.version>
 		<lombok.version>1.18.16</lombok.version>
